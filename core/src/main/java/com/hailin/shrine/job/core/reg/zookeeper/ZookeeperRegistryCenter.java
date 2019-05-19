@@ -3,6 +3,7 @@ package com.hailin.shrine.job.core.reg.zookeeper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
+import com.hailin.shrine.job.core.reg.exception.RegExceptionHandler;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.ACLProvider;
@@ -10,6 +11,7 @@ import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,5 +199,19 @@ public class ZookeeperRegistryCenter implements CoordinatorRegistryCenter {
     @Override
     public Object getRawClient() {
         return null;
+    }
+
+    /**
+     * 获取节点路径的状态
+     * @param fullPath 节点全路径
+     */
+    public Stat getStat(String fullPath) {
+        try {
+
+            return client.checkExists().forPath(fullPath);
+        }catch (final Exception e){
+            RegExceptionHandler.handleException(e);
+            return null;
+        }
     }
 }

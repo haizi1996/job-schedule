@@ -1,5 +1,6 @@
 package com.hailin.shrine.job.core.reg.zookeeper;
 
+import com.google.common.base.Strings;
 import com.hailin.shrine.job.core.reg.config.AbstractRegistryCenterConfiguration;
 
 /**

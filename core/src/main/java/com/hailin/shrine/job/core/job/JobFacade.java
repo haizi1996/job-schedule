@@ -1,6 +1,6 @@
 package com.hailin.shrine.job.core.job;
 
-import com.hailin.shrine.job.core.executor.ShardingContexts;
+import com.hailin.shrine.job.core.executor.ShardingContext;
 
 import java.util.Collection;
 
@@ -32,23 +32,23 @@ public interface JobFacade {
     /**
      * 注册作业启动信息.
      *
-     * @param shardingContexts 分片上下文
+     * @param shardingContext 分片上下文
      */
-    void registerJobBegin(ShardingContexts shardingContexts);
+    void registerJobBegin(ShardingContext shardingContext);
 
     /**
      * 注册作业完成信息.
      *
-     * @param shardingContexts 分片上下文
+     * @param shardingContext 分片上下文
      */
-    void registerJobCompleted(ShardingContexts shardingContexts);
+    void registerJobCompleted(ShardingContext shardingContext);
 
     /**
      * 获取当前作业服务器的分片上下文.
      *
      * @return 分片上下文
      */
-    ShardingContexts getShardingContexts();
+    ShardingContext getShardingContexts();
 
     /**
      * 设置任务被错过执行的标记.
@@ -91,16 +91,16 @@ public interface JobFacade {
     /**
      * 作业执行前的执行的方法.
      *
-     * @param shardingContexts 分片上下文
+     * @param shardingContext 分片上下文
      */
-    void beforeJobExecuted(ShardingContexts shardingContexts);
+    void beforeJobExecuted(ShardingContext shardingContext);
 
     /**
      * 作业执行后的执行的方法.
      *
-     * @param shardingContexts 分片上下文
+     * @param shardingContext 分片上下文
      */
-    void afterJobExecuted(ShardingContexts shardingContexts);
+    void afterJobExecuted(ShardingContext shardingContext);
 
     /**
      * 发布执行事件.

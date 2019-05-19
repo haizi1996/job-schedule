@@ -1,6 +1,6 @@
 package com.hailin.shrine.job.core.strategy;
 
-import com.hailin.hjob.common.util.IpUtils;
+import com.hailin.shrine.job.common.util.IpUtils;
 
 import java.lang.management.ManagementFactory;
 

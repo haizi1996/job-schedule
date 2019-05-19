@@ -18,9 +18,26 @@
             <version>${shrine.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.hailin</groupId>
+            <artifactId>sharding</artifactId>
+            <version>${shrine.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hailin</groupId>
+            <artifactId>api</artifactId>
+            <version>${shrine.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.quartz-scheduler</groupId>
             <artifactId>quartz</artifactId>
         </dependency>
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+        </dependency>
+
+
     </dependencies>
 
     <build>
