@@ -8,6 +8,7 @@
         <module>common</module>
         <module>sharding</module>
         <module>api</module>
+        <module>shrine-spring</module>
     </modules>
     <parent>
         <groupId>org.springframework.boot</groupId>

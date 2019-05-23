@@ -12,6 +12,7 @@ import com.hailin.shrine.job.common.util.JsonUtils;
 import com.hailin.shrine.job.common.util.LogEvents;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
 import com.hailin.shrine.job.core.basic.JobTypeManager;
+import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
 import com.hailin.shrine.job.core.basic.threads.ShrineThreadFactory;
 import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.job.config.JobType;
@@ -309,7 +310,24 @@ public class ConfigurationService extends AbstractShrineService {
         }
     }
 
-
+    /**
+     * 读取作业配置.
+     *
+     * @param fromCache 是否从缓存中读取
+     * @return 作业配置
+     */
+    public JobConfiguration load(final boolean fromCache) {
+        String result;
+        if (fromCache) {
+            result = JobNodeStorage.getJobNodeData(com.hailin.shrine.job.core.basic.config.ConfigurationNode.ROOT);
+            if (null == result) {
+                result = jobNodeStorage.getJobNodeDataDirectly(com.hailin.shrine.job.core.basic.config.ConfigurationNode.ROOT);
+            }
+        } else {
+            result = jobNodeStorage.getJobNodeDataDirectly(com.hailin.shrine.job.core.basic.config.ConfigurationNode.ROOT);
+        }
+        return JsonUtils.fromJson(result , JobConfiguration.class);
+    }
 
     /**
      *

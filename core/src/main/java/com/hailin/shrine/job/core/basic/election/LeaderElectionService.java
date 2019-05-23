@@ -23,9 +23,14 @@ public class LeaderElectionService extends AbstractShrineService {
         super(jobScheduler);
     }
 
-
+    /**
+     * 删除主节点供重新选举.
+     */
+    public void removeLeader() {
+        jobNodeStorage.removeJobNodeIfExisted(ElectionNode.INSTANCE);
+    }
     @Override
-    public void close() throws Exception {
+    public void shutdown()  {
         synchronized (shutDown){
             if (shutDown.compareAndSet(false ,true)){
                 try {

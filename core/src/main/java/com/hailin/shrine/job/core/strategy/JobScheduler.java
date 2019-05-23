@@ -1,6 +1,7 @@
 package com.hailin.shrine.job.core.strategy;
 
 import com.google.common.base.Optional;
+import com.hailin.shrine.job.common.exception.JobConfigurationException;
 import com.hailin.shrine.job.common.exception.JobException;
 import com.hailin.shrine.job.common.exception.JobSystemException;
 import com.hailin.shrine.job.core.basic.AbstractElasticJob;
@@ -13,6 +14,7 @@ import com.hailin.shrine.job.core.basic.execution.ExecutionContextService;
 import com.hailin.shrine.job.core.basic.execution.ExecutionService;
 import com.hailin.shrine.job.core.basic.failover.FailoverService;
 import com.hailin.shrine.job.core.basic.listener.ListenerManager;
+import com.hailin.shrine.job.core.basic.schdule.SchedulerFacade;
 import com.hailin.shrine.job.core.basic.server.ServerService;
 import com.hailin.shrine.job.core.basic.sharding.ShardingService;
 import com.hailin.shrine.job.core.basic.statistics.StatisticsService;
@@ -112,7 +114,7 @@ public class JobScheduler {
 
     private LimitMaxJobService limitMaxJobService ;
 
-    private JobFacade schedulerFacade;
+    private SchedulerFacade schedulerFacade;
 
 
     public JobScheduler(JobConfiguration jobConfig, CoordinatorRegistryCenter regCenter) {
@@ -135,7 +137,7 @@ public class JobScheduler {
             shutdown(false);
             throw throwable;
         }
-        JobConfiguration jobConfiguration = schedulerFacade.updateJobConfiguration(jobConfiguration);
+        JobConfiguration curjobConfign = schedulerFacade.updateJobConfiguration(jobConfiguration);
         JobScheduleController jobScheduleController = new JobScheduleController(createScheduler(), createJobDetail())
 
     }
@@ -349,7 +351,7 @@ public class JobScheduler {
         Properties result = new Properties();
         result.put("org.quartz.threadPool.class", org.quartz.simpl.SimpleThreadPool.class.getName());
         result.put("org.quartz.threadPool.threadCount", "1");
-        result.put("org.quartz.scheduler.instanceName", liteJobConfig.getJobName());
+        result.put("org.quartz.scheduler.instanceName", currentConf.getJobName());
         result.put("org.quartz.jobStore.misfireThreshold", "1");
         result.put("org.quartz.plugin.shutdownhook.class", JobShutdownHookPlugin.class.getName());
         result.put("org.quartz.plugin.shutdownhook.cleanShutdown", Boolean.TRUE.toString());
