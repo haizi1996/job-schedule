@@ -19,7 +19,11 @@ public class JobRegistry {
 
     private static Map<String , ConcurrentHashMap<String , JobScheduler>> schedulerMap = Maps.newConcurrentMap();
 
+    private Map<String , Map<String , JobScheduler>>
+
     private JobRegistry(){}
+
+
 
     private Map<String , Integer> curentShardingTotalCountMap = Maps.newConcurrentMap();
 

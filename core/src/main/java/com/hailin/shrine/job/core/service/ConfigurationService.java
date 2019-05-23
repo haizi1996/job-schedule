@@ -1,15 +1,19 @@
 package com.hailin.shrine.job.core.service;
 
 
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.reflect.TypeToken;
+import com.hailin.shrine.job.common.exception.JobConfigurationException;
 import com.hailin.shrine.job.common.exception.ShardingItemParametersException;
+import com.hailin.shrine.job.common.util.GsonFactory;
 import com.hailin.shrine.job.common.util.JsonUtils;
 import com.hailin.shrine.job.common.util.LogEvents;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
 import com.hailin.shrine.job.core.basic.JobTypeManager;
 import com.hailin.shrine.job.core.basic.threads.ShrineThreadFactory;
+import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.job.config.JobType;
 import com.hailin.shrine.job.core.job.constant.ConfigurationNode;
 import com.hailin.shrine.job.core.job.constant.ShrineConstant;
@@ -59,7 +63,7 @@ public class ConfigurationService extends AbstractShrineService {
     }
 
     @Override
-    public void close() throws Exception {
+    public void shutdown() {
         super.close();
         if (executorService != null){
             executorService.shutdown();
@@ -462,5 +466,35 @@ public class ConfigurationService extends AbstractShrineService {
         }
         return downStreamList;
     }
+    /**
+     * 持久化分布式作业配置信息.
+     *
+     * @param liteJobConfig 作业配置
+     */
+    public void persist(final JobConfiguration liteJobConfig) {
+        checkConflictJob(liteJobConfig);
+        if (!jobNodeStorage.isJobNodeExisted(ConfigurationNode.ROOT) || liteJobConfig.isOverwrite()) {
+            jobNodeStorage.replaceJobNode(ConfigurationNode.ROOT, GsonFactory.getGson().toJson(liteJobConfig));
+        }
+    }
 
+    private void checkConflictJob(final JobConfiguration liteJobConfig) {
+        Optional<JobConfiguration> liteJobConfigFromZk = find();
+        if (liteJobConfigFromZk.isPresent() && !liteJobConfigFromZk.get().getTypeConfig().getJobClass().equals(liteJobConfig.getTypeConfig().getJobClass())) {
+            throw new JobConfigurationException("Job conflict with register center. The job '%s' in register center's class is '%s', your job class is '%s'",
+                    liteJobConfig.getJobName(), liteJobConfigFromZk.get().getTypeConfig().getJobClass(), liteJobConfig.getTypeConfig().getJobClass());
+        }
+    }
+
+    private Optional<JobConfiguration> find() {
+        if (!jobNodeStorage.isJobNodeExisted(ConfigurationNode.ROOT)) {
+            return Optional.absent();
+        }
+        JobConfiguration result = GsonFactory.getGson().fromJson(jobNodeStorage.getJobNodeDataDirectly(ConfigurationNode.ROOT) , JobConfiguration.class);
+        if (null == result) {
+            // TODO 应该删除整个job node,并非仅仅删除config node
+            jobNodeStorage.removeJobNodeIfExisted(ConfigurationNode.ROOT);
+        }
+        return Optional.fromNullable(result);
+    }
 }

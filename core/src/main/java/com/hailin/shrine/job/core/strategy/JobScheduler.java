@@ -22,10 +22,12 @@ import com.hailin.shrine.job.core.basic.threads.ShrineThreadFactory;
 import com.hailin.shrine.job.core.basic.threads.TaskQueue;
 import com.hailin.shrine.job.core.executor.LimitMaxJobService;
 import com.hailin.shrine.job.core.executor.ShrineExecutorService;
+import com.hailin.shrine.job.core.job.JobFacade;
 import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.job.trigger.ShrineScheduler;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.reg.zookeeper.ZkCacheManager;
+import com.hailin.shrine.job.core.schedule.JobScheduleController;
 import com.hailin.shrine.job.core.schedule.JobShutdownHookPlugin;
 import com.hailin.shrine.job.core.schedule.ShrineJob;
 import com.hailin.shrine.job.core.service.ConfigurationService;
@@ -110,6 +112,8 @@ public class JobScheduler {
 
     private LimitMaxJobService limitMaxJobService ;
 
+    private JobFacade schedulerFacade;
+
 
     public JobScheduler(JobConfiguration jobConfig, CoordinatorRegistryCenter regCenter) {
         this.jobConfiguration = jobConfig;
@@ -131,6 +135,9 @@ public class JobScheduler {
             shutdown(false);
             throw throwable;
         }
+        JobConfiguration jobConfiguration = schedulerFacade.updateJobConfiguration(jobConfiguration);
+        JobScheduleController jobScheduleController = new JobScheduleController(createScheduler(), createJobDetail())
+
     }
 
     private void createJob() {

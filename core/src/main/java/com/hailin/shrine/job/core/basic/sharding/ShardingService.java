@@ -254,4 +254,7 @@ public class ShardingService extends AbstractShrineService {
         isShutdown = true;
         necessaryWatcher = null; // cannot registerNecessaryWatcher
     }
+
+    public Object getLocalShardingItems() {
+    }
 }

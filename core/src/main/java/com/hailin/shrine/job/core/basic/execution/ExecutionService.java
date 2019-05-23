@@ -7,6 +7,7 @@ import com.hailin.shrine.job.core.basic.AbstractShrineService;
 import com.hailin.shrine.job.core.basic.ShrineExecutionContext;
 import com.hailin.shrine.job.core.basic.control.ReportService;
 import com.hailin.shrine.job.core.basic.failover.FailoverNode;
+import com.hailin.shrine.job.core.basic.sharding.ShardingNode;
 import com.hailin.shrine.job.core.basic.sharding.context.JobExecutionMultipleShardingContext;
 import com.hailin.shrine.job.core.reg.exception.RegException;
 import com.hailin.shrine.job.core.service.ConfigurationService;
@@ -14,6 +15,7 @@ import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -200,7 +202,14 @@ public class ExecutionService extends AbstractShrineService {
     }
 
 
-
-
-
+    /**
+     * 设置任务被错过执行的标记.
+     *
+     * @param items 需要设置错过执行的任务分片项
+     */
+    public void setMisfire(final Collection<Integer> items) {
+        for (int each : items) {
+            jobNodeStorage.createJobNodeIfNeeded(ShardingNode.getMisfireNode(each));
+        }
+    }
 }

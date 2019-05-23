@@ -5,14 +5,15 @@ import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 import com.hailin.shrine.job.core.job.constant.ConfigurationNode;
 import com.hailin.shrine.job.core.job.constant.ShrineConstant;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
+import lombok.Getter;
 
 /**
  * 作业核心配置项
  *
  * @author zhanghailin
  */
-
-public final class JobConfiguration {
+@Getter
+public final class JobConfiguration implements JobRootConfiguration {
 
     /**
      * 作业名称
@@ -119,6 +120,7 @@ public final class JobConfiguration {
     //下游作业
     private String downStream;
 
+    private  JobTypeConfiguration typeConfig;
 
     public JobConfiguration(CoordinatorRegistryCenter regCenter,
                             String jobName) {
@@ -130,6 +132,9 @@ public final class JobConfiguration {
     public JobConfiguration(String jobName) {
         this.jobName = jobName;
     }
+
+
+
 
     public void reLoadConfig(){
         if (regCenter == null){
