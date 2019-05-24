@@ -20,6 +20,7 @@ public class ShrineJob implements Job {
 
     @Override
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-
+        //调度任务
+        //从dataMap 获取调度器 进行任务调度执行
     }
 }

@@ -1,9 +1,12 @@
 package com.hailin.shrine.job.core.basic.election;
 
+import com.hailin.shrine.job.common.util.BlockUtils;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
+import com.hailin.shrine.job.core.basic.JobRegistry;
+import com.hailin.shrine.job.core.basic.server.ServerService;
 import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
 import com.hailin.shrine.job.core.basic.storage.LeaderExecutionCallback;
-import com.hailin.shrine.job.core.strategy.JobScheduler;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,15 +22,18 @@ public class LeaderElectionService extends AbstractShrineService {
 
     private AtomicBoolean shutDown = new AtomicBoolean( false);
 
-    public LeaderElectionService(final JobScheduler jobScheduler){
-        super(jobScheduler);
+    private final ServerService serverService;
+
+    public LeaderElectionService( final String jobName , final CoordinatorRegistryCenter regCenter) {
+        super(jobName , regCenter);
+        serverService = new ServerService( jobName , regCenter);
     }
 
     /**
      * 删除主节点供重新选举.
      */
     public void removeLeader() {
-        jobNodeStorage.removeJobNodeIfExisted(ElectionNode.INSTANCE);
+        jobNodeStorage.removeJobNodeIfExisted(LeaderNode.INSTANCE);
     }
     @Override
     public void shutdown()  {
@@ -37,8 +43,8 @@ public class LeaderElectionService extends AbstractShrineService {
                     JobNodeStorage jobNodeStorage = getJobNodeStorage();
 
                     if(jobNodeStorage.isConnected() &&
-                    executorName.equals(jobNodeStorage.getJobNodeDataDirectly(ElectionNode.LEADER_HOST))){
-                        jobNodeStorage.removeJobNodeIfExisted(ElectionNode.LEADER_HOST);
+                    executorName.equals(jobNodeStorage.getJobNodeDataDirectly(LeaderNode.INSTANCE))){
+                        jobNodeStorage.removeJobNodeIfExisted(LeaderNode.INSTANCE);
                         LOGGER.info("{} that was {}'s leader, released itself", executorName, jobName);
                     }
                 }catch (Throwable t){
@@ -52,26 +58,38 @@ public class LeaderElectionService extends AbstractShrineService {
      * 选举主节点
      */
     public void leaderElection(){
-        getJobNodeStorage().executeInLeader(ElectionNode.LATCH , new LeaderElectionCallback());
+        getJobNodeStorage().executeInLeader(LeaderNode.LATCH , new LeaderElectionCallback());
     }
 
     /**
      * 判断当前节点是否是主节点
-     * 如果没有主节点，则选举，知道有主节点
+     * 如果没有主节点，则选举，直到有主节点
      */
-    public Boolean isLeader(){
-        while (!shutDown.get() && !hasLeader()){
-            LOGGER.info( jobName, "No leader, try to election");
-            leaderElection();
+    public Boolean isLeaderUntilBlock(){
+        while (!hasLeader() && serverService.hasAvailableServers()) {
+            LOGGER.info("Leader is electing, waiting for {} ms", 100);
+            BlockUtils.waitingShortTime();
+            if (!JobRegistry.getInstance().isShutdown(jobName) && serverService.isAvailableServer(JobRegistry.getInstance().getJobInstance(jobName).getIp())) {
+                leaderElection();
+            }
         }
-        return executorName.equals(getJobNodeStorage().getJobNodeDataDirectly(ElectionNode.LEADER_HOST));
+        return isLeader();
+    }
+
+    /**
+     * 判断当前节点是否是主节点.
+     *
+     * @return 当前节点是否是主节点
+     */
+    public boolean isLeader() {
+        return !JobRegistry.getInstance().isShutdown(jobName) && JobRegistry.getInstance().getJobInstance(jobName).getJobInstanceId().equals(jobNodeStorage.getJobNodeData(LeaderNode.INSTANCE));
     }
 
     /**
      * 判断是否已经有主节点
      */
     public boolean hasLeader(){
-        return getJobNodeStorage().isJobNodeExisted(ElectionNode.LEADER_HOST);
+        return getJobNodeStorage().isJobNodeExisted(LeaderNode.INSTANCE);
     }
 
     class LeaderElectionCallback implements LeaderExecutionCallback{
@@ -81,8 +99,8 @@ public class LeaderElectionService extends AbstractShrineService {
                 if (shutDown.get()){
                     return;
                 }
-                if (!getJobNodeStorage().isJobNodeExisted(ElectionNode.LEADER_HOST)){
-                    getJobNodeStorage().fillEphemeralJobNode(ElectionNode.LEADER_HOST, executorName);
+                if (!getJobNodeStorage().isJobNodeExisted(LeaderNode.INSTANCE)){
+                    getJobNodeStorage().fillEphemeralJobNode(LeaderNode.INSTANCE, executorName);
                     LOGGER.info(jobName, "executor {} become job {}'s leader", executorName, jobName);
                 }
             }

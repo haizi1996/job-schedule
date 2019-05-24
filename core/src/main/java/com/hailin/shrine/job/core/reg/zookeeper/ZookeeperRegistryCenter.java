@@ -214,4 +214,14 @@ public class ZookeeperRegistryCenter implements CoordinatorRegistryCenter {
             return null;
         }
     }
+
+    @Override
+    public void evictCacheData(String cachePath) {
+
+    }
+
+    @Override
+    public Object getRawCache(String cachePath) {
+        return null;
+    }
 }

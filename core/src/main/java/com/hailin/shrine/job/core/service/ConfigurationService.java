@@ -6,19 +6,19 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.reflect.TypeToken;
 import com.hailin.shrine.job.common.exception.JobConfigurationException;
+import com.hailin.shrine.job.common.exception.JobExecutionEnvironmentException;
 import com.hailin.shrine.job.common.exception.ShardingItemParametersException;
 import com.hailin.shrine.job.common.util.GsonFactory;
 import com.hailin.shrine.job.common.util.JsonUtils;
 import com.hailin.shrine.job.common.util.LogEvents;
+import com.hailin.shrine.job.common.util.TimeService;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
 import com.hailin.shrine.job.core.basic.JobTypeManager;
-import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
 import com.hailin.shrine.job.core.basic.threads.ShrineThreadFactory;
 import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.job.config.JobType;
-import com.hailin.shrine.job.core.job.constant.ConfigurationNode;
 import com.hailin.shrine.job.core.job.constant.ShrineConstant;
-import com.hailin.shrine.job.core.strategy.JobScheduler;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.sharding.node.ShrineExecutorsNode;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
@@ -53,8 +53,12 @@ public class ConfigurationService extends AbstractShrineService {
 
     private ExecutorService executorService;
 
-    public ConfigurationService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    private final TimeService timeService;
+
+
+    public ConfigurationService( final String jobName , final CoordinatorRegistryCenter regCenter) {
+        super( jobName , regCenter);
+        timeService = new TimeService();
     }
 
     @Override
@@ -65,7 +69,7 @@ public class ConfigurationService extends AbstractShrineService {
 
     @Override
     public void shutdown() {
-        super.close();
+        super.shutdown();
         if (executorService != null){
             executorService.shutdown();
         }
@@ -319,7 +323,7 @@ public class ConfigurationService extends AbstractShrineService {
     public JobConfiguration load(final boolean fromCache) {
         String result;
         if (fromCache) {
-            result = JobNodeStorage.getJobNodeData(com.hailin.shrine.job.core.basic.config.ConfigurationNode.ROOT);
+            result = jobNodeStorage.getJobNodeData(ConfigurationNode.ROOT);
             if (null == result) {
                 result = jobNodeStorage.getJobNodeDataDirectly(com.hailin.shrine.job.core.basic.config.ConfigurationNode.ROOT);
             }
@@ -439,20 +443,20 @@ public class ConfigurationService extends AbstractShrineService {
      * 如果存在/config/enabledReport节点，则返回节点的内容；
      * 如果不存在/config/enabledReport节点，如果作业类型是Java或者Shell，则返回true；否则，返回false；
      */
-    public boolean isEnabledReport() {
-        Boolean isEnabledReportInJobConfig = jobConfiguration.getEnabledReport();
-
-        if (isEnabledReportInJobConfig != null) {
-            return isEnabledReportInJobConfig;
-        }
-        // cron和passive作业默认上报
-        JobType jobType = JobTypeManager.get(jobConfiguration.getJobType());
-        if (jobType.isCron() || jobType.isPassive()) {
-            return true;
-        }
-
-        return false;
-    }
+//    public boolean isEnabledReport() {
+//        Boolean isEnabledReportInJobConfig = jobConfiguration.getEnabledReport();
+//
+//        if (isEnabledReportInJobConfig != null) {
+//            return isEnabledReportInJobConfig;
+//        }
+//        // cron和passive作业默认上报
+//        JobType jobType = JobTypeManager.get(jobConfiguration.getJobType());
+//        if (jobType.isCron() || jobType.isPassive()) {
+//            return true;
+//        }
+//
+//        return false;
+//    }
 
     public boolean isUseDispreferList() {
         return jobConfiguration.isUseDispreferList();
@@ -514,5 +518,22 @@ public class ConfigurationService extends AbstractShrineService {
             jobNodeStorage.removeJobNodeIfExisted(ConfigurationNode.ROOT);
         }
         return Optional.fromNullable(result);
+    }
+
+    /**
+     * 检查本机与注册中心的时间误差秒数是否在允许范围.
+     *
+     * @throws JobExecutionEnvironmentException 本机与注册中心的时间误差秒数不在允许范围所抛出的异常
+     */
+    public void checkMaxTimeDiffSecondsTolerable() throws JobExecutionEnvironmentException {
+        int maxTimeDiffSeconds =  load(true).getMaxTimeDiffSeconds();
+        if (-1  == maxTimeDiffSeconds) {
+            return;
+        }
+        long timeDiff = Math.abs(timeService.getCurrentMillis() - jobNodeStorage.getRegistryCenterTime());
+        if (timeDiff > maxTimeDiffSeconds * 1000L) {
+            throw new JobExecutionEnvironmentException(
+                    "Time different between job server and register center exceed '%s' seconds, max time different is '%s' seconds.", timeDiff / 1000, maxTimeDiffSeconds);
+        }
     }
 }

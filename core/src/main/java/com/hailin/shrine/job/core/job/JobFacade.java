@@ -3,6 +3,7 @@ package com.hailin.shrine.job.core.job;
 import com.hailin.shrine.job.common.event.JobExecutionEvent;
 import com.hailin.shrine.job.common.event.JobStatusTraceEvent;
 import com.hailin.shrine.job.common.exception.JobExecutionEnvironmentException;
+import com.hailin.shrine.job.core.basic.sharding.context.AbstractJobExecutionShardingContext;
 import com.hailin.shrine.job.core.executor.ShardingContext;
 import com.hailin.shrine.job.core.job.config.JobRootConfiguration;
 
@@ -38,21 +39,21 @@ public interface JobFacade {
      *
      * @param shardingContext 分片上下文
      */
-    void registerJobBegin(ShardingContext shardingContext);
+    void registerJobBegin(AbstractJobExecutionShardingContext shardingContext);
 
     /**
      * 注册作业完成信息.
      *
      * @param shardingContext 分片上下文
      */
-    void registerJobCompleted(ShardingContext shardingContext);
+    void registerJobCompleted(AbstractJobExecutionShardingContext shardingContext);
 
     /**
      * 获取当前作业服务器的分片上下文.
      *
      * @return 分片上下文
      */
-    ShardingContext getShardingContexts();
+    AbstractJobExecutionShardingContext getShardingContexts();
 
     /**
      * 设置任务被错过执行的标记.

@@ -4,7 +4,6 @@ import com.hailin.shrine.job.core.basic.listener.AbstractJobListener;
 import com.hailin.shrine.job.core.basic.listener.AbstractListenerManager;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 import com.hailin.shrine.job.core.basic.threads.ShrineThreadFactory;
-import com.hailin.shrine.job.core.job.constant.ConfigurationNode;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;

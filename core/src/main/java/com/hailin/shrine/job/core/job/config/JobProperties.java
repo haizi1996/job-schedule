@@ -3,6 +3,10 @@
 package com.hailin.shrine.job.core.job.config;
 
 import com.hailin.shrine.job.common.util.GsonFactory;
+import com.hailin.shrine.job.core.job.executor.ExecutorServiceHandler;
+import com.hailin.shrine.job.core.job.executor.handler.DefaultExecutorServiceHandler;
+import com.hailin.shrine.job.core.job.executor.handler.DefaultJobExceptionHandler;
+import com.hailin.shrine.job.core.job.executor.handler.JobExceptionHandler;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,7 +19,6 @@ import java.util.Map;
 /**
  * 作业属性配置.
  *
- * @author zhangliang
  */
 @AllArgsConstructor
 @NoArgsConstructor

@@ -1,5 +1,6 @@
 package com.hailin.shrine.job.core.basic.listener;
 
+import com.hailin.shrine.job.core.basic.Shutdownable;
 import com.hailin.shrine.job.core.basic.analyse.AnalyseResetListenerManager;
 import com.hailin.shrine.job.core.basic.config.ConfigurationListenerManager;
 import com.hailin.shrine.job.core.basic.control.ControlListenerManager;
@@ -7,13 +8,15 @@ import com.hailin.shrine.job.core.basic.election.ElectionListenerManager;
 import com.hailin.shrine.job.core.basic.failover.FailoverListenerManager;
 import com.hailin.shrine.job.core.basic.server.JobOperationListenerManager;
 import com.hailin.shrine.job.core.basic.sharding.ShardingListenerManager;
+import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 
 /**
  * 作业注册的中心的监听器管理者
  * @author zhanghailin
  */
-public class ListenerManager extends AbstractListenerManager {
+public class ListenerManager implements Shutdownable {
 
     //主节点选举的监听管理
     private ElectionListenerManager electionListenerManager;
@@ -31,12 +34,16 @@ public class ListenerManager extends AbstractListenerManager {
 
     private ControlListenerManager controlListenerManager;
 
+    private final JobNodeStorage jobNodeStorage;
 
-    public ListenerManager(final JobScheduler jobScheduler){
-        super(jobScheduler);
+    private  RegistryCenterConnectionStateListener regCenterConnectionStateListener;
+
+
+    public ListenerManager(final CoordinatorRegistryCenter regCenter, final String jobName,){
+        jobNodeStorage = new JobNodeStorage(regCenter, jobName);
+
     }
 
-    @Override
     public void start() {
         //创建监听器实例
         electionListenerManager = new ElectionListenerManager(jobScheduler);
@@ -46,6 +53,7 @@ public class ListenerManager extends AbstractListenerManager {
         shardingListenerManager = new ShardingListenerManager(jobScheduler);
         analyseResetListenerManager = new AnalyseResetListenerManager(jobScheduler);
         controlListenerManager = new ControlListenerManager(jobScheduler);
+        regCenterConnectionStateListener = new RegistryCenterConnectionStateListener(coordinatorRegistryCenter , jobName);
 
         //开启监听
         electionListenerManager.start();
@@ -55,6 +63,9 @@ public class ListenerManager extends AbstractListenerManager {
         shardingListenerManager.start();
         analyseResetListenerManager.start();
         controlListenerManager.start();
+
+
+        jobNodeStorage.addConnectionStateListener(regCenterConnectionStateListener);
     }
 
     @Override

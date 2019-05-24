@@ -1,6 +1,5 @@
 package com.hailin.shrine.job.core.basic.execution;
 
-import com.hailin.shrine.job.core.basic.election.ElectionNode;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 
 /**

@@ -2,10 +2,12 @@ package com.hailin.shrine.job.core.basic.failover;
 
 import com.google.common.collect.Lists;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
+import com.hailin.shrine.job.core.basic.config.ConfigurationNode;
 import com.hailin.shrine.job.core.basic.execution.ExecutionNode;
+import com.hailin.shrine.job.core.basic.sharding.ShardingService;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 import com.hailin.shrine.job.core.basic.storage.LeaderExecutionCallback;
-import com.hailin.shrine.job.core.job.constant.ConfigurationNode;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import com.hailin.shrine.job.sharding.node.ShrineExecutorsNode;
 import org.apache.zookeeper.CreateMode;
@@ -26,8 +28,11 @@ public class FailoverService extends AbstractShrineService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FailoverService.class);
 
-    public FailoverService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    private final ShardingService shardingService;
+
+    public FailoverService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
+        super(jobName, coordinatorRegistryCenter);
+        shardingService = new ShardingService(jobName , coordinatorRegistryCenter);
     }
 
     @Override
@@ -89,40 +94,40 @@ public class FailoverService extends AbstractShrineService {
     }
 
 
-    /**
-     * 作业进行失效作业分片项转移时，执行回调接口
-     * @author zhanghailin
-     */
-    class FailoverLeaderExecutionCallback implements LeaderExecutionCallback{
-        @Override
-        public void execute() {
-            if (!needFailover() || jobScheduler == null
-                    || coordinatorRegistryCenter.isExisted(ShrineExecutorsNode.getExecutorNoTrafficNodePath(executorName))){
-                return;
-            }
-            if (!jobScheduler.getConfigService().getPreferList().contains(executorName)
-            && !jobScheduler.getConfigService().isUseDispreferList()){
-                return;
-            }
-            List<String> items = getJobNodeStorage().getJobNodeChildrenKeys(FailoverNode.ITEMS_ROOT);
-
-            if (CollectionUtils.isEmpty(items)){
-                return;
-            }
-
-            //获取第1个分片项
-            int crashedItem = Integer.parseInt(getJobNodeStorage().
-                    getJobNodeChildrenKeys(FailoverNode.ITEMS_ROOT).get(0));
-            LOGGER.debug( jobName, "Elastic job: failover job begin, crashed item:{}.", crashedItem);
-            //将此分片划分到自己的分片目录下
-            getJobNodeStorage()
-                    .fillEphemeralJobNode(FailoverNode.getExecutionFailoverNode(crashedItem), executorName);
-            //从崩溃分片目录下移除此分片项
-            getJobNodeStorage().removeJobNodeIfExisted(FailoverNode.getItemsNode(crashedItem));
-             //立即出发此任务
-            jobScheduler.triggerJob(null);
-        }
-    }
+//    /**
+//     * 作业进行失效作业分片项转移时，执行回调接口
+//     * @author zhanghailin
+//     */
+//    class FailoverLeaderExecutionCallback implements LeaderExecutionCallback{
+//        @Override
+//        public void execute() {
+//            if (!needFailover() || jobScheduler == null
+//                    || coordinatorRegistryCenter.isExisted(ShrineExecutorsNode.getExecutorNoTrafficNodePath(executorName))){
+//                return;
+//            }
+//            if (!jobScheduler.getConfigService().getPreferList().contains(executorName)
+//            && !jobScheduler.getConfigService().isUseDispreferList()){
+//                return;
+//            }
+//            List<String> items = getJobNodeStorage().getJobNodeChildrenKeys(FailoverNode.ITEMS_ROOT);
+//
+//            if (CollectionUtils.isEmpty(items)){
+//                return;
+//            }
+//
+//            //获取第1个分片项
+//            int crashedItem = Integer.parseInt(getJobNodeStorage().
+//                    getJobNodeChildrenKeys(FailoverNode.ITEMS_ROOT).get(0));
+//            LOGGER.debug( jobName, "Elastic job: failover job begin, crashed item:{}.", crashedItem);
+//            //将此分片划分到自己的分片目录下
+//            getJobNodeStorage()
+//                    .fillEphemeralJobNode(FailoverNode.getExecutionFailoverNode(crashedItem), executorName);
+//            //从崩溃分片目录下移除此分片项
+//            getJobNodeStorage().removeJobNodeIfExisted(FailoverNode.getItemsNode(crashedItem));
+//             //立即出发此任务
+//            jobScheduler.triggerJob(null);
+//        }
+//    }
 
     /**
      * 获取运行在本作业服务器的失效转移序列号.
@@ -143,21 +148,21 @@ public class FailoverService extends AbstractShrineService {
         Collections.sort(result);
         return result;
     }
-    /**
-     * 获取运行在本作业服务器的被失效转移的序列号.
-     *
-     * @return 运行在本作业服务器的被失效转移的序列号
-     */
-    public List<Integer> getLocalHostTakeOffItems(){
-        List<Integer> shardingItems = jobScheduler.getShardingService().getLocalHostShardingItems();
-        List<Integer> result = Lists.newArrayListWithCapacity(shardingItems.size());
-        for (int each : shardingItems) {
-            if (getJobNodeStorage().isJobNodeExisted(FailoverNode.getExecutionFailoverNode(each))) {
-                result.add(each);
-            }
-        }
-        return result;
-    }
+//    /**
+//     * 获取运行在本作业服务器的被失效转移的序列号.
+//     *
+//     * @return 运行在本作业服务器的被失效转移的序列号
+//     */
+//    public List<Integer> getLocalHostTakeOffItems(){
+//        List<Integer> shardingItems = jobScheduler.getShardingService().getLocalHostShardingItems();
+//        List<Integer> result = Lists.newArrayListWithCapacity(shardingItems.size());
+//        for (int each : shardingItems) {
+//            if (getJobNodeStorage().isJobNodeExisted(FailoverNode.getExecutionFailoverNode(each))) {
+//                result.add(each);
+//            }
+//        }
+//        return result;
+//    }
 
     /**
      * 删除作业失效转移信息

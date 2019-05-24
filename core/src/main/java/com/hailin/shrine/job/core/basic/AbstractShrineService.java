@@ -4,12 +4,16 @@ import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
 import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * 抽象服务类
  * @author zhanghailin
  */
-public class AbstractShrineService implements Shutdownable {
+@Getter
+@Setter
+public abstract class AbstractShrineService implements Shutdownable {
 
     //执行者名字
     protected String executorName;
@@ -27,62 +31,22 @@ public class AbstractShrineService implements Shutdownable {
     //作业节点数据访问类
     protected JobNodeStorage jobNodeStorage;
 
-    public AbstractShrineService(JobScheduler jobScheduler) {
-        this.jobScheduler = jobScheduler;
-        this.jobName = jobScheduler.getJobName();
-        this.executorName = jobScheduler.getExecutorName();
-        this.coordinatorRegistryCenter = jobScheduler.getRegCenter();
-        this.jobConfiguration = jobScheduler.getCurrentConf();
-        this.jobNodeStorage = jobScheduler.getJobNodeStorage();
-    }
-
-    public String getExecutorName() {
-        return executorName;
-    }
-
-    public void setExecutorName(String executorName) {
-        this.executorName = executorName;
-    }
-
-    public String getJobName() {
-        return jobName;
-    }
-
-    public void setJobName(String jobName) {
+    public AbstractShrineService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
         this.jobName = jobName;
-    }
-
-    public JobScheduler getJobScheduler() {
-        return jobScheduler;
-    }
-
-    public void setJobScheduler(JobScheduler jobScheduler) {
-        this.jobScheduler = jobScheduler;
-    }
-
-    public JobConfiguration getJobConfiguration() {
-        return jobConfiguration;
-    }
-
-    public void setJobConfiguration(JobConfiguration jobConfiguration) {
-        this.jobConfiguration = jobConfiguration;
-    }
-
-    public CoordinatorRegistryCenter getCoordinatorRegistryCenter() {
-        return coordinatorRegistryCenter;
-    }
-
-    public void setCoordinatorRegistryCenter(CoordinatorRegistryCenter coordinatorRegistryCenter) {
         this.coordinatorRegistryCenter = coordinatorRegistryCenter;
+        this.jobNodeStorage = new JobNodeStorage(coordinatorRegistryCenter , jobName);
     }
 
-    public JobNodeStorage getJobNodeStorage() {
-        return jobNodeStorage;
-    }
+//    public AbstractShrineService(JobScheduler jobScheduler) {
+//        this.jobScheduler = jobScheduler;
+//        this.jobName = jobScheduler.getJobName();
+//        this.executorName = jobScheduler.getExecutorName();
+//        this.coordinatorRegistryCenter = jobScheduler.getRegCenter();
+//        this.jobConfiguration = jobScheduler.getCurrentConf();
+//        this.jobNodeStorage = jobScheduler.getJobNodeStorage();
+//    }
 
-    public void setJobNodeStorage(JobNodeStorage jobNodeStorage) {
-        this.jobNodeStorage = jobNodeStorage;
-    }
+
 
     public void start(){
 

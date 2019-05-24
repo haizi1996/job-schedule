@@ -1,6 +1,8 @@
 package com.hailin.shrine.job.core.basic.sharding.context;
 
 import com.google.common.collect.Maps;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Map;
 
@@ -8,6 +10,7 @@ import java.util.Map;
  * 作业运行时分片上下文抽象类
  * @author zhanghailin
  */
+@Getter
 public abstract class AbstractJobExecutionShardingContext {
 
 
@@ -26,6 +29,12 @@ public abstract class AbstractJobExecutionShardingContext {
 
     // 自定义上下文
     private Map<String , String> customContext;
+
+    /**
+     * 是否允许可以发送作业事件.
+     */
+    @Setter
+    private boolean allowSendJobEvent = true;
 
     protected Map<Integer , String> shardingItemParameters = Maps.newHashMap();
 

@@ -15,6 +15,8 @@ public class ServerNode {
 
     public static final String IP = ROOT + "/%s/ip";
 
+    private static final String SERVERS = ROOT + "/%s";
+
     public static final String STATUS_APPENDIX = "status";
 
     public static final String STATUS = ROOT + "/%s/" + STATUS_APPENDIX;
@@ -36,7 +38,13 @@ public class ServerNode {
 
     public static final String STOPONETIME = ROOT + "/%s/stopOneTime";
 
-    private ServerNode() {
+    private final String jobName;
+
+    private final JobNodePath jobNodePath;
+
+    public ServerNode(final String jobName) {
+        this.jobName = jobName;
+        jobNodePath = new JobNodePath(jobName);
     }
 
     static String getVersionNode(String executorName) {
@@ -106,5 +114,8 @@ public class ServerNode {
     public static boolean isStopOneTimePath(final String jobName, String path, String executorName) {
         return path
                 .startsWith(JobNodePath.getNodeFullPath(jobName, String.format(ServerNode.STOPONETIME, executorName)));
+    }
+    String getServerNode(final String ip) {
+        return String.format(SERVERS, ip);
     }
 }

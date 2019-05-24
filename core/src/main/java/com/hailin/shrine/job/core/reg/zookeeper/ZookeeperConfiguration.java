@@ -2,11 +2,15 @@ package com.hailin.shrine.job.core.reg.zookeeper;
 
 import com.google.common.base.Strings;
 import com.hailin.shrine.job.core.reg.config.AbstractRegistryCenterConfiguration;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * zookeeper配置信息
  * @author zhanghailin
  */
+@Getter
+@Setter
 public class ZookeeperConfiguration extends AbstractRegistryCenterConfiguration {
 
     public static final int MIN_CLIENT_RETRY_TIMES = 3;

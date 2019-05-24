@@ -1,6 +1,9 @@
 package com.hailin.shrine.job.core.strategy;
 
 import com.hailin.shrine.job.common.util.IpUtils;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.lang.management.ManagementFactory;
 
@@ -8,6 +11,9 @@ import java.lang.management.ManagementFactory;
  * 任务运行实例.
  * @author zhanghailin
  */
+@RequiredArgsConstructor
+@Getter
+@EqualsAndHashCode(of = "jobInstanceId")
 public final class JobInstance {
 
     private static final String DELIMITER = "@-@";

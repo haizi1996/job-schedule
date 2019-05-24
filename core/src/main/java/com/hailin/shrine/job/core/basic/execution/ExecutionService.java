@@ -4,11 +4,13 @@ import com.google.common.collect.Lists;
 import com.hailin.shrine.job.ShrineJobReturn;
 import com.hailin.shrine.job.ShrineSystemErrorGroup;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
+import com.hailin.shrine.job.core.basic.JobRegistry;
 import com.hailin.shrine.job.core.basic.ShrineExecutionContext;
 import com.hailin.shrine.job.core.basic.control.ReportService;
 import com.hailin.shrine.job.core.basic.failover.FailoverNode;
 import com.hailin.shrine.job.core.basic.sharding.ShardingNode;
 import com.hailin.shrine.job.core.basic.sharding.context.JobExecutionMultipleShardingContext;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.reg.exception.RegException;
 import com.hailin.shrine.job.core.service.ConfigurationService;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
@@ -33,14 +35,14 @@ public class ExecutionService extends AbstractShrineService {
 
     private ReportService reportService;
 
-    public ExecutionService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public ExecutionService(String jobName, CoordinatorRegistryCenter registryCenter) {
+        super(jobName, registryCenter);
     }
 
     @Override
     public void start() {
-        configurationService = jobScheduler.getConfigService();
-        reportService = jobScheduler.getReportService();
+//        configurationService = jobScheduler.getConfigService();
+//        reportService = jobScheduler.getReportService();
     }
 
     /**
@@ -72,26 +74,30 @@ public class ExecutionService extends AbstractShrineService {
      * 注册作业启动信息
      *
      */
-    public void registerJobBegin(){}
-
+    public void registerJobBegin(final JobExecutionMultipleShardingContext shardingContexts){
+        JobRegistry.getInstance().setJobRunning(jobName, true);
+        if (!configurationService.load(true).isMonitorExecution()) {
+            return;
+        }
+        for (int each : shardingContexts.getShardingItemParameters().keySet()) {
+            jobNodeStorage.fillEphemeralJobNode(ShardingNode.getRunningNode(each), "");
+        }
+    }
     /**
      * 注册作业完成信息.
      *
+     * @param shardingContexts 分片上下文
      */
-    public void registerJobCompletedControlInfoByItem(
-            final JobExecutionMultipleShardingContext jobExecutionShardingContext, int item) {
-
-        boolean isEnabledReport = configurationService.isEnabledReport();
-        if (!isEnabledReport) {
+    public void registerJobCompleted(final JobExecutionMultipleShardingContext shardingContexts) {
+        JobRegistry.getInstance().setJobRunning(jobName, false);
+        if (!configurationService.load(true).isMonitorExecution()) {
             return;
         }
-
-        updateErrorJobReturnIfPossible(jobExecutionShardingContext, item);
-        // create completed node
-        createCompletedNode(item);
-        // remove running node
-        getJobNodeStorage().removeJobNode(ExecutionNode.getRunningNode(item));
+        for (int each : shardingContexts.getShardingItemParameters().keySet()) {
+            jobNodeStorage.removeJobNodeIfExisted(ShardingNode.getRunningNode(each));
+        }
     }
+
 
     private void createCompletedNode(int item) {
         try {

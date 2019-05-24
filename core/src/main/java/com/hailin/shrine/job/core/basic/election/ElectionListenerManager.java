@@ -41,7 +41,7 @@ public class ElectionListenerManager extends AbstractListenerManager {
      * leader选举的监听器
      * 所有follow进行监听 leader失效后，进行leader选举
      */
-    class LeaderElectionJobListener implements NodeCacheListener{
+    public class LeaderElectionJobListener implements NodeCacheListener{
         @Override
         public void nodeChanged() throws Exception {
             zkCacheManager.getExecutorService().execute(()->{

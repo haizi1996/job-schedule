@@ -2,7 +2,6 @@ package com.hailin.shrine.job.core.job.config;
 
 import com.google.common.base.Strings;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
-import com.hailin.shrine.job.core.job.constant.ConfigurationNode;
 import com.hailin.shrine.job.core.job.constant.ShrineConstant;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import lombok.Getter;
@@ -14,6 +13,9 @@ import lombok.Getter;
  */
 @Getter
 public final class JobConfiguration implements JobRootConfiguration {
+
+
+    private String nameSpace;
 
     /**
      * 作业名称
@@ -58,6 +60,15 @@ public final class JobConfiguration implements JobRootConfiguration {
      * 是否开启错过作业重新执行
      */
     private boolean misfire;
+
+    /**
+     * 与注册中心的最大的时间差
+     */
+    private int maxTimeDiffSeconds;
+
+    private boolean monitorExecution;
+
+    private int reconcileIntervalMinutes;
 
     //时区
     private String timeZone;

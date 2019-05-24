@@ -3,6 +3,7 @@ package com.hailin.shrine.job.core.executor;
 
 
 import com.hailin.shrine.job.core.basic.sharding.context.AbstractJobExecutionShardingContext;
+import lombok.Getter;
 
 import java.io.Serializable;
 
@@ -11,7 +12,7 @@ import java.io.Serializable;
  *
  * @author zhanghailin
  */
-
+@Getter
 public final class ShardingContext implements Serializable {
 
     /**

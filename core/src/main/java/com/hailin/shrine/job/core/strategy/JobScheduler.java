@@ -15,6 +15,7 @@ import com.hailin.shrine.job.core.basic.execution.ExecutionService;
 import com.hailin.shrine.job.core.basic.failover.FailoverService;
 import com.hailin.shrine.job.core.basic.listener.ListenerManager;
 import com.hailin.shrine.job.core.basic.schdule.SchedulerFacade;
+import com.hailin.shrine.job.core.basic.schdule.ShrineJobFacade;
 import com.hailin.shrine.job.core.basic.server.ServerService;
 import com.hailin.shrine.job.core.basic.sharding.ShardingService;
 import com.hailin.shrine.job.core.basic.statistics.StatisticsService;
@@ -27,6 +28,7 @@ import com.hailin.shrine.job.core.executor.ShrineExecutorService;
 import com.hailin.shrine.job.core.job.JobFacade;
 import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.job.trigger.ShrineScheduler;
+import com.hailin.shrine.job.core.job.type.script.ScriptJob;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.reg.zookeeper.ZkCacheManager;
 import com.hailin.shrine.job.core.schedule.JobScheduleController;
@@ -115,7 +117,7 @@ public class JobScheduler {
     private LimitMaxJobService limitMaxJobService ;
 
     private SchedulerFacade schedulerFacade;
-
+    private final JobFacade jobFacade;
 
     public JobScheduler(JobConfiguration jobConfig, CoordinatorRegistryCenter regCenter) {
         this.jobConfiguration = jobConfig;
@@ -124,45 +126,51 @@ public class JobScheduler {
         zkCacheManager = new ZkCacheManager((CuratorFramework) regCenter.getRawClient(), jobName,
                 executorName);
         configService= new ConfigurationService(this);
+        schedulerFacade = new SchedulerFacade(regCenter, currentConf.getJobName());
+        jobFacade = new ShrineJobFacade(regCenter, currentConf.getJobName());
+
     }
 
 
     public void init() {
-        try {
-            startAll();
-            createJob();
-            serverService.persistServerOnline(job);
-            configService.notifyJobEnabledOrNot();
-        }catch (Throwable throwable){
-            shutdown(false);
-            throw throwable;
-        }
-        JobConfiguration curjobConfign = schedulerFacade.updateJobConfiguration(jobConfiguration);
-        JobScheduleController jobScheduleController = new JobScheduleController(createScheduler(), createJobDetail())
-
+//        try {
+//            startAll();
+//            createJob();
+//            serverService.persistServerOnline(job);
+//            configService.notifyJobEnabledOrNot();
+//        }catch (Throwable throwable){
+//            shutdown(false);
+//            throw throwable;
+//        }
+        JobConfiguration jobConfigFromRegCenter = schedulerFacade.updateJobConfiguration(jobConfiguration);
+        JobRegistry.getInstance().setCurrentShardingTotalCount(jobConfigFromRegCenter.getJobName() , jobConfigFromRegCenter.getShardingTotalCount());
+        JobScheduleController jobScheduleController = new JobScheduleController(createScheduler(), createJobDetail(currentConf.getTypeConfig().getJobClass()), currentConf.getJobName());
+        schedulerFacade.registerStartUpInfo(jobConfigFromRegCenter.isEnabled());
+        JobRegistry.getInstance().registerJob(jobName ,jobScheduleController,regCenter );
+//        jobScheduleController.scheduleJob(jobConfigFromRegCenter.getTypeConfig().getCoreConfig().getCron());
     }
 
-    private void createJob() {
-        try{
-            job = JobTypeManager.get(currentConf.getJobType()).getHandlerClass().newInstance();
-        }catch (Exception e){
-            LOGGER.error(jobName , "unexpected error" , e);
-            throw new JobException(e);
-        }
-        job.setJobScheduler(this);
-        job.setConfigurationService(configService);
-        job.setShardingService(shardingService);
-        job.setExecutionContextService(executionContextService);
-        job.setExecutionService(executionService);
-        job.setFailoverService(failoverService);
-        job.setServerService(serverService);
-        job.setExecutorName(executorName);
-        job.setReportService(reportService);
-        job.setJobName(jobName);
-        job.setNamespace(regCenter.getNamespace());
-        job.setShrineExecutorService(shrineExecutorService);
-        job.init();
-    }
+//    private void createJob() {
+//        try{
+//            job = JobTypeManager.get(currentConf.getJobType()).getHandlerClass().newInstance();
+//        }catch (Exception e){
+//            LOGGER.error(jobName , "unexpected error" , e);
+//            throw new JobException(e);
+//        }
+//        job.setJobScheduler(this);
+//        job.setConfigurationService(configService);
+//        job.setShardingService(shardingService);
+//        job.setExecutionContextService(executionContextService);
+//        job.setExecutionService(executionService);
+//        job.setFailoverService(failoverService);
+//        job.setServerService(serverService);
+//        job.setExecutorName(executorName);
+//        job.setReportService(reportService);
+//        job.setJobName(jobName);
+//        job.setNamespace(regCenter.getNamespace());
+//        job.setShrineExecutorService(shrineExecutorService);
+//        job.init();
+//    }
 
     private void startAll() {
         configService.start();
@@ -186,58 +194,6 @@ public class JobScheduler {
         statisticsService.startProcesCountJob();
     }
 
-    public String getJobName() {
-        return jobName;
-    }
-
-    public void setJobName(String jobName) {
-        this.jobName = jobName;
-    }
-
-    public String getExecutorName() {
-        return executorName;
-    }
-
-    public void setExecutorName(String executorName) {
-        this.executorName = executorName;
-    }
-
-    public JobConfiguration getPreviousConfig() {
-        return previousConfig;
-    }
-
-    public void setPreviousConfig(JobConfiguration previousConfig) {
-        this.previousConfig = previousConfig;
-    }
-
-
-    public ZkCacheManager getZkCacheManager() {
-        return zkCacheManager;
-    }
-
-    public CoordinatorRegistryCenter getRegCenter() {
-        return regCenter;
-    }
-
-    public JobConfiguration getCurrentConf() {
-        return currentConf;
-    }
-
-    public void setCurrentConf(JobConfiguration currentConf) {
-        this.currentConf = currentConf;
-    }
-
-    public JobConfiguration getJobConfiguration() {
-        return jobConfiguration;
-    }
-
-    public JobNodeStorage getJobNodeStorage() {
-        return jobNodeStorage;
-    }
-
-    public ConfigurationService getConfigService() {
-        return configService;
-    }
 
     /**
      * 立刻启动此任务
@@ -250,6 +206,7 @@ public class JobScheduler {
         job.getScheduler().trigger(triggeredDataStr);
 
     }
+
 
     /**
      * 获取下次作业触发时间.可能被暂停时间段所影响。
@@ -316,7 +273,7 @@ public class JobScheduler {
                 shrineExecutorService.removeJobName(jobName);
             }
             //移除作业注册表
-            JobRegistry.clearJob(executorName , jobName);
+//            JobRegistry.clearJob(executorName , jobName);
         }
     }
     public void reCreateExecutorService(){
@@ -351,7 +308,7 @@ public class JobScheduler {
         Properties result = new Properties();
         result.put("org.quartz.threadPool.class", org.quartz.simpl.SimpleThreadPool.class.getName());
         result.put("org.quartz.threadPool.threadCount", "1");
-        result.put("org.quartz.scheduler.instanceName", currentConf.getJobName());
+        result.put("org.quartz.scheduler.instanceName", currentConf.getNameSpace());
         result.put("org.quartz.jobStore.misfireThreshold", "1");
         result.put("org.quartz.plugin.shutdownhook.class", JobShutdownHookPlugin.class.getName());
         result.put("org.quartz.plugin.shutdownhook.cleanShutdown", Boolean.TRUE.toString());
@@ -387,9 +344,6 @@ public class JobScheduler {
         statisticsService.startProcesCountJob();
     }
 
-    public boolean isAllowedShutdownGracefully(){
-        return JobTypeManager.get(currentConf.getJobType()).isAllowedShutdownGracefully();
-    }
 
     public ReportService getReportService() {
         return reportService;
@@ -423,93 +377,7 @@ public class JobScheduler {
         this.job = job;
     }
 
-    public ShrineExecutorService getShrineExecutorService() {
-        return shrineExecutorService;
-    }
 
-    public void setShrineExecutorService(ShrineExecutorService shrineExecutorService) {
-        this.shrineExecutorService = shrineExecutorService;
-    }
-
-    public ServerService getServerService() {
-        return serverService;
-    }
-
-    public void setServerService(ServerService serverService) {
-        this.serverService = serverService;
-    }
-
-    public ShardingService getShardingService() {
-        return shardingService;
-    }
-
-    public void setShardingService(ShardingService shardingService) {
-        this.shardingService = shardingService;
-    }
-
-    public FailoverService getFailoverService() {
-        return failoverService;
-    }
-
-    public void setFailoverService(FailoverService failoverService) {
-        this.failoverService = failoverService;
-    }
-
-    public ExecutionService getExecutionService() {
-        return executionService;
-    }
-
-    public void setExecutionService(ExecutionService executionService) {
-        this.executionService = executionService;
-    }
-
-    public StatisticsService getStatisticsService() {
-        return statisticsService;
-    }
-
-    public void setStatisticsService(StatisticsService statisticsService) {
-        this.statisticsService = statisticsService;
-    }
-
-    public AnalyseService getAnalyseService() {
-        return analyseService;
-    }
-
-    public void setAnalyseService(AnalyseService analyseService) {
-        this.analyseService = analyseService;
-    }
-
-    public AtomicBoolean getIsShutdownFlag() {
-        return isShutdownFlag;
-    }
-
-    public void setIsShutdownFlag(AtomicBoolean isShutdownFlag) {
-        this.isShutdownFlag = isShutdownFlag;
-    }
-
-    public ListenerManager getListenerManager() {
-        return listenerManager;
-    }
-
-    public void setListenerManager(ListenerManager listenerManager) {
-        this.listenerManager = listenerManager;
-    }
-
-    public ExecutorService getExecutorService() {
-        return executorService;
-    }
-
-    public void setExecutorService(ExecutorService executorService) {
-        this.executorService = executorService;
-    }
-
-    public LimitMaxJobService getLimitMaxJobService() {
-        return limitMaxJobService;
-    }
-
-    public void setLimitMaxJobService(LimitMaxJobService limitMaxJobService) {
-        this.limitMaxJobService = limitMaxJobService;
-    }
 
 
 }

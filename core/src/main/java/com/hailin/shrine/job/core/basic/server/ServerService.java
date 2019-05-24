@@ -3,7 +3,11 @@ package com.hailin.shrine.job.core.basic.server;
 import com.hailin.shrine.job.common.util.LocalHostService;
 import com.hailin.shrine.job.core.basic.AbstractElasticJob;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
+import com.hailin.shrine.job.core.basic.JobRegistry;
 import com.hailin.shrine.job.core.basic.election.LeaderElectionService;
+import com.hailin.shrine.job.core.basic.instance.InstanceNode;
+import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 
 import java.util.Collections;
@@ -15,10 +19,16 @@ import java.util.List;
  */
 public class ServerService extends AbstractShrineService {
 
+
+
     private LeaderElectionService leaderElectionService;
 
-    public ServerService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    private ServerNode serverNode;
+
+
+    public ServerService(String jobName, CoordinatorRegistryCenter registryCenter) {
+        super(jobName, registryCenter);
+        serverNode = new ServerNode(jobName);
     }
 
     @Override
@@ -105,5 +115,58 @@ public class ServerService extends AbstractShrineService {
      */
     public void clearRunOneTimePath() {
         getJobNodeStorage().removeJobNodeIfExisted(ServerNode.getRunOneTimePath(executorName));
+    }
+
+
+    /**
+     * 判断服务器是否启用.
+     *
+     * @param ip 作业服务器IP地址
+     * @return 服务器是否启用
+     */
+    public boolean isEnableServer(final String ip) {
+        return !ServerStatus.DISABLED.name().equals(jobNodeStorage.getJobNodeData(serverNode.getServerNode(ip)));
+    }
+    /**
+     * 持久化作业服务器上线信息.
+     *
+     * @param enabled 作业是否启用
+     */
+    public void persistOnline(final boolean enabled) {
+        if (!JobRegistry.getInstance().isShutdown(jobName)) {
+            jobNodeStorage.fillJobNode(serverNode.getServerNode(JobRegistry.getInstance().getJobInstance(jobName).getIp()), enabled ? "" : ServerStatus.DISABLED.name());
+        }
+    }
+    /**
+     * 获取是否还有可用的作业服务器.
+     *
+     * @return 是否还有可用的作业服务器
+     */
+    public boolean hasAvailableServers() {
+        List<String> servers = jobNodeStorage.getJobNodeChildrenKeys(ServerNode.ROOT);
+        for (String each : servers) {
+            if (isAvailableServer(each)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * 判断作业服务器是否可用.
+     *
+     * @param ip 作业服务器IP地址
+     * @return 作业服务器是否可用
+     */
+    public boolean isAvailableServer(final String ip) {
+        return isEnableServer(ip) && hasOnlineInstances(ip);
+    }
+
+    private boolean hasOnlineInstances(final String ip) {
+        for (String each : jobNodeStorage.getJobNodeChildrenKeys(InstanceNode.ROOT)) {
+            if (each.startsWith(ip)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

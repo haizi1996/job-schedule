@@ -10,7 +10,10 @@ import com.hailin.shrine.job.core.reg.zookeeper.ZookeeperConfiguration;
 import com.hailin.shrine.job.core.reg.zookeeper.ZookeeperRegistryCenter;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.transaction.CuratorTransactionFinal;
+import org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.curator.framework.recipes.cache.TreeCacheListener;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
+import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,11 +34,18 @@ public class JobNodeStorage {
 
     private final CoordinatorRegistryCenter registryCenter ;
 
-    private final JobConfiguration jobConfiguration;
+    private JobConfiguration jobConfiguration;
 
     private String executorName;
 
     private final String jobName;
+    private JobNodePath jobNodePath;
+
+    public JobNodeStorage(CoordinatorRegistryCenter registryCenter, String jobName) {
+        this.registryCenter = registryCenter;
+        this.jobName = jobName;
+        jobNodePath = new JobNodePath(jobName);
+    }
 
 
     public JobNodeStorage(CoordinatorRegistryCenter registryCenter, JobConfiguration jobConfiguration) {
@@ -56,6 +66,16 @@ public class JobNodeStorage {
     public boolean isJobNodeExisted(final String node){
         return registryCenter.isExisted(JobNodePath.getNodeFullPath(jobConfiguration.getJobName() , node));
     }
+
+    /**
+     * 注册连接状态监听器.
+     *
+     * @param listener 连接状态监听器
+     */
+    public void addConnectionStateListener(final ConnectionStateListener listener) {
+        getClient().getConnectionStateListenable().addListener(listener);
+    }
+
 
     /**
      * 判断作业是否存在
@@ -159,6 +179,15 @@ public class JobNodeStorage {
             registryCenter
                     .persist(JobNodePath.getNodeFullPath(jobConfiguration.getJobName(), node), value.toString());
         }
+    }
+    /**
+     * 填充节点数据.
+     *
+     * @param node 作业节点名称
+     * @param value 作业节点数据值
+     */
+    public void fillJobNode(final String node, final Object value) {
+        registryCenter.persist(jobNodePath.getFullPath(node), value.toString());
     }
 
     /**
@@ -346,5 +375,24 @@ public class JobNodeStorage {
 
     public boolean isConnected() {
         return registryCenter.isConnected();
+    }
+
+    /**
+     * 注册数据监听器.
+     *
+     * @param listener 数据监听器
+     */
+    public void addDataListener(final TreeCacheListener listener) {
+        TreeCache cache = (TreeCache) registryCenter.getRawCache("/" + jobName);
+        cache.getListenable().addListener(listener);
+    }
+
+    /**
+     * 获取注册中心当前时间.
+     *
+     * @return 注册中心当前时间
+     */
+    public long getRegistryCenterTime() {
+        return registryCenter.getRegistryCenterTime(jobNodePath.getFullPath("systemTime/current"));
     }
 }

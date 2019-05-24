@@ -11,5 +11,5 @@ public interface JobExceptionHandler {
      * @param jobName 作业名
      * @param cause 异常原因
      */
-    void handlerException(String jobName , Throwable cause);
+    void handleException(String jobName , Throwable cause);
 }

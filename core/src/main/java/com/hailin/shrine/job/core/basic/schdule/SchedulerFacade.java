@@ -1,15 +1,17 @@
 package com.hailin.shrine.job.core.basic.schdule;
 
-import com.hailin.shrine.job.common.util.JsonUtils;
 import com.hailin.shrine.job.core.basic.JobRegistry;
-import com.hailin.shrine.job.core.basic.config.ConfigurationNode;
 import com.hailin.shrine.job.core.basic.election.LeaderElectionService;
 import com.hailin.shrine.job.core.basic.execution.ExecutionService;
+import com.hailin.shrine.job.core.basic.instance.InstanceService;
 import com.hailin.shrine.job.core.basic.listener.ListenerManager;
+import com.hailin.shrine.job.core.basic.monitor.MonitorService;
+import com.hailin.shrine.job.core.basic.reconcile.ReconcileService;
 import com.hailin.shrine.job.core.basic.server.ServerService;
 import com.hailin.shrine.job.core.basic.sharding.ShardingService;
-import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
 import com.hailin.shrine.job.core.job.config.JobConfiguration;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
+import com.hailin.shrine.job.core.schedule.JobTriggerListener;
 import com.hailin.shrine.job.core.service.ConfigurationService;
 
 /**
@@ -17,8 +19,6 @@ import com.hailin.shrine.job.core.service.ConfigurationService;
  * @author zhanghailin
  */
 public final class SchedulerFacade {
-
-    private String jobName;
 
     private ConfigurationService configService;
 
@@ -30,8 +30,24 @@ public final class SchedulerFacade {
 
     private ExecutionService executionService;
 
+    private InstanceService instanceService;
+
+    private final MonitorService monitorService;
+
+    private final ReconcileService reconcileService;
+
     private ListenerManager listenerManager;
 
+    public SchedulerFacade(final CoordinatorRegistryCenter regCenter, final String jobName) {
+        configService = new ConfigurationService(jobName , regCenter);
+        leaderElectionService = new LeaderElectionService( jobName , regCenter);
+        serverService = new ServerService( jobName , regCenter);
+        instanceService = new InstanceService(jobName , regCenter);
+        shardingService = new ShardingService(jobName , regCenter);
+        executionService = new ExecutionService(jobName , regCenter);
+        monitorService = new MonitorService( jobName , regCenter);
+        reconcileService = new ReconcileService(regCenter, jobName);
+    }
     /**
      * 更新作业配置.
      *
@@ -50,8 +66,8 @@ public final class SchedulerFacade {
      * @param enabled 作业是否启用
      */
     public void registerStartUpInfo(final boolean enabled) {
-        listenerManager.startAllListeners();
-        leaderElectionService.electLeader();
+        listenerManager.start();
+        leaderElectionService.leaderElection();
         serverService.persistOnline(enabled);
         instanceService.persistOnline();
         shardingService.setReshardingFlag();
@@ -74,5 +90,14 @@ public final class SchedulerFacade {
 //            reconcileService.stopAsync();
 //        }
         JobRegistry.getInstance();
+    }
+
+    /**
+     * 获取作业触发监听器.
+     *
+     * @return 作业触发监听器
+     */
+    public JobTriggerListener newJobTriggerListener() {
+        return new JobTriggerListener(executionService, shardingService);
     }
 }

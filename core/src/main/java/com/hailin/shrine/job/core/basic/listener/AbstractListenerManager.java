@@ -1,10 +1,12 @@
 package com.hailin.shrine.job.core.basic.listener;
 
 import com.hailin.shrine.job.core.basic.Shutdownable;
+import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
 import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.reg.zookeeper.ZkCacheManager;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
+import org.apache.curator.framework.recipes.cache.TreeCacheListener;
 import org.apache.curator.framework.state.ConnectionStateListener;
 
 /**
@@ -31,16 +33,21 @@ public abstract class AbstractListenerManager implements Shutdownable {
     //作业缓存管理
     protected ZkCacheManager zkCacheManager;
 
-    public AbstractListenerManager(JobScheduler jobScheduler) {
-        this.jobScheduler = jobScheduler;
-        this.jobName = jobScheduler.getJobName();
-        this.executorName = jobScheduler.getExecutorName();
-        this.jobConfiguration = jobScheduler.getCurrentConf();
-        coordinatorRegistryCenter = jobScheduler.getRegCenter();
-        zkCacheManager = jobScheduler.getZkCacheManager();
+    private final JobNodeStorage jobNodeStorage;
+
+    protected AbstractListenerManager( final String jobName , final CoordinatorRegistryCenter regCenter) {
+        jobNodeStorage = new JobNodeStorage(regCenter, jobName);
     }
 
-    public abstract void start();
+//    public AbstractListenerManager(JobScheduler jobScheduler) {
+//        this.jobScheduler = jobScheduler;
+//        this.jobName = jobScheduler.getJobName();
+//        this.executorName = jobScheduler.getExecutorName();
+//        this.jobConfiguration = jobScheduler.getCurrentConf();
+//        coordinatorRegistryCenter = jobScheduler.getRegCenter();
+//        zkCacheManager = jobScheduler.getZkCacheManager();
+//    }
+
 
     /**
      * 增加一个连接状态的监听器
@@ -58,6 +65,15 @@ public abstract class AbstractListenerManager implements Shutdownable {
         coordinatorRegistryCenter.removeConnectionStateListener(listener);
     }
 
+
+    /**
+     * 开启监听器.
+     */
+    public abstract void start();
+
+    protected void addDataListener(final TreeCacheListener listener) {
+        jobNodeStorage.addDataListener(listener);
+    }
     @Override
     public void shutdown() {
 
