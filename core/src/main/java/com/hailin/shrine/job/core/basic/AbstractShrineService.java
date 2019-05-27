@@ -1,7 +1,7 @@
 package com.hailin.shrine.job.core.basic;
 
 import com.hailin.shrine.job.core.basic.storage.JobNodeStorage;
-import com.hailin.shrine.job.core.job.config.JobConfiguration;
+import com.hailin.shrine.job.core.config.JobConfiguration;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import lombok.Getter;

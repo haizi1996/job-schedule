@@ -1,9 +1,8 @@
 
-package com.hailin.shrine.job.core.job.executor.handler;
+package com.hailin.shrine.job.core.handler;
 
 
 import com.hailin.shrine.job.common.util.ExecutorServiceObject;
-import com.hailin.shrine.job.core.job.executor.ExecutorServiceHandler;
 
 import java.util.concurrent.ExecutorService;
 

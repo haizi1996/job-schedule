@@ -2,7 +2,7 @@ package com.hailin.shrine.job.core.basic;
 
 import com.hailin.shrine.job.ShrineJobReturn;
 import com.hailin.shrine.job.core.basic.sharding.context.JobExecutionMultipleShardingContext;
-import com.hailin.shrine.job.core.job.config.JobConfiguration;
+import com.hailin.shrine.job.core.config.JobConfiguration;
 
 import java.util.HashMap;
 import java.util.Map;

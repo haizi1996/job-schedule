@@ -1,9 +1,14 @@
 package com.hailin.shrine.job.core.basic.election;
 
-import com.hailin.shrine.job.core.basic.listener.AbstractListenerManager;
-import com.hailin.shrine.job.core.basic.storage.JobNodePath;
-import com.hailin.shrine.job.core.strategy.JobScheduler;
-import org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import com.hailin.shrine.job.core.basic.JobRegistry;
+import com.hailin.shrine.job.core.listener.AbstractJobListener;
+import com.hailin.shrine.job.core.listener.AbstractListenerManager;
+import com.hailin.shrine.job.core.basic.server.ServerNode;
+import com.hailin.shrine.job.core.basic.server.ServerService;
+import com.hailin.shrine.job.core.basic.server.ServerStatus;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,49 +24,75 @@ public class ElectionListenerManager extends AbstractListenerManager {
     private boolean isShutDown;
 
     private final LeaderElectionService leaderElectionService;
+    private final ServerService serverService;
 
-    public ElectionListenerManager(final JobScheduler jobScheduler){
-        super(jobScheduler);
-        leaderElectionService = new LeaderElectionService(jobScheduler);
+    private final LeaderNode leaderNode;
+
+    private final ServerNode serverNode;
+
+
+    public ElectionListenerManager(String jobName, CoordinatorRegistryCenter regCenter) {
+        super(jobName, regCenter);
+        this.leaderElectionService = new LeaderElectionService(jobName , regCenter);
+        serverService = new ServerService(jobName , regCenter);
+        leaderNode = new LeaderNode(jobName);
+        serverNode = new ServerNode(jobName);
     }
 
     @Override
     public void start() {
-        zkCacheManager.addNodeCacheListener(new LeaderElectionJobListener() , JobNodePath.getNodeFullPath(jobName, ElectionNode.LEADER_HOST));
+//        zkCacheManager.addNodeCacheListener(new LeaderElectionJobListener() , JobNodePath.getNodeFullPath(jobName, ElectionNode.LEADER_HOST));
+        addDataListener(new LeaderElectionJobListener());
+        addDataListener(new LeaderAbdicationJobListener());
+
     }
 
     @Override
-    public void close() throws Exception {
+    public void shutdown() {
         isShutDown = false;
-        leaderElectionService.close();
-        zkCacheManager.closeNodeCache(JobNodePath.getNodeFullPath(jobName , ElectionNode.LEADER_HOST));
+        leaderElectionService.shutdown();
+//        zkCacheManager.closeNodeCache(JobNodePath.getNodeFullPath(jobNameame , LeaderNode.LEADER_HOST));
     }
 
     /**
      * leader选举的监听器
      * 所有follow进行监听 leader失效后，进行leader选举
      */
-    public class LeaderElectionJobListener implements NodeCacheListener{
+    class LeaderElectionJobListener extends AbstractJobListener {
         @Override
-        public void nodeChanged() throws Exception {
-            zkCacheManager.getExecutorService().execute(()->{
-                try {
-                  LOGGER.error(jobName , "Leader host nodeChanged", jobName);
-                    if (isShutDown) {
-                        LOGGER.debug( jobName, "ElectionListenerManager has been shutdown");
-                        return;
-                    }
-                    if (!leaderElectionService.hasLeader()) {
-                        LOGGER.info( jobName, "Leader crashed, elect a new leader now");
-                        leaderElectionService.leaderElection();
-                        LOGGER.info( jobName, "Leader election completed");
-                    } else {
-                        LOGGER.debug(jobName, "Leader is already existing, unnecessary to election");
-                    }
-                }catch (Throwable t){
-                    LOGGER.error(jobName , t.getMessage() ,t);
-                }
-            });
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
+            if (!JobRegistry.getInstance().isShutdown(jobName) && (isActiveElection(path, data) || isPassiveElection(path, event.getType()))) {
+                leaderElectionService.leaderElection();
+            }
+        }
+        private boolean isActiveElection(final String path, final String data) {
+            return !leaderElectionService.hasLeader() && isLocalServerEnabled(path, data);
+        }
+
+        private boolean isPassiveElection(final String path, final TreeCacheEvent.Type eventType) {
+            return isLeaderCrashed(path, eventType) && serverService.isAvailableServer(JobRegistry.getInstance().getJobInstance(jobName).getIp());
+        }
+
+        private boolean isLeaderCrashed(final String path, final TreeCacheEvent.Type eventType) {
+            return leaderNode.isLeaderInstancePath(path) && TreeCacheEvent.Type.NODE_REMOVED == eventType;
+        }
+
+        private boolean isLocalServerEnabled(final String path, final String data) {
+            return serverNode.isLocalServerPath(path) && !ServerStatus.DISABLED.name().equals(data);
+        }
+    }
+
+    class LeaderAbdicationJobListener extends AbstractJobListener {
+
+        @Override
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
+            if (leaderElectionService.isLeader() && isLocalServerDisabled(path, data)) {
+                leaderElectionService.removeLeader();
+            }
+        }
+
+        private boolean isLocalServerDisabled(final String path, final String data) {
+            return serverNode.isLocalServerPath(path) && ServerStatus.DISABLED.name().equals(data);
         }
     }
 }

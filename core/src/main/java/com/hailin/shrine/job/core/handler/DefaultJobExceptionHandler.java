@@ -1,5 +1,5 @@
 
-package com.hailin.shrine.job.core.job.executor.handler;
+package com.hailin.shrine.job.core.handler;
 
 import lombok.extern.slf4j.Slf4j;
 

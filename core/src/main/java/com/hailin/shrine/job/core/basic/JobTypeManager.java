@@ -1,6 +1,6 @@
 package com.hailin.shrine.job.core.basic;
 
-import com.hailin.shrine.job.core.job.config.JobType;
+import com.hailin.shrine.job.core.config.JobType;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -11,7 +11,7 @@ public class JobTypeManager {
 
 
     public static void register(JobType jobType){
-        jobTypeMap.put(jobType.getName() , jobType);
+        jobTypeMap.put(jobType.name() , jobType);
     }
 
     public static JobType get(String name){

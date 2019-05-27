@@ -1,5 +1,6 @@
 package com.hailin.shrine.job.core.basic.execution;
 
+import com.hailin.shrine.job.core.basic.election.LeaderNode;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 
 /**
@@ -39,7 +40,7 @@ public final class ExecutionNode {
 
     public static final String LAST_COMPLETE_TIME = ROOT + "/%s/lastCompleteTime";
 
-    public static final String LEADER_ROOT = ElectionNode.ROOT + "/" + ROOT;
+    public static final String LEADER_ROOT = LeaderNode.ROOT + "/" + ROOT;
 
     private final String jobName;
 

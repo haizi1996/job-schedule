@@ -3,6 +3,7 @@
 package com.hailin.shrine.job.core.basic.failover;
 
 
+import com.hailin.shrine.job.core.basic.election.LeaderNode;
 import com.hailin.shrine.job.core.basic.execution.ExecutionNode;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 
@@ -15,7 +16,7 @@ public final class FailoverNode {
 
 	static final String FAILOVER = "failover";
 
-	static final String LEADER_ROOT = ElectionNode.ROOT + "/" + FAILOVER;
+	static final String LEADER_ROOT = LeaderNode.ROOT + "/" + FAILOVER;
 
 	static final String ITEMS_ROOT = LEADER_ROOT + "/items";
 

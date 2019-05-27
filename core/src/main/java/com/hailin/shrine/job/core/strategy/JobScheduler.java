@@ -2,18 +2,17 @@ package com.hailin.shrine.job.core.strategy;
 
 import com.google.common.base.Optional;
 import com.hailin.shrine.job.common.exception.JobConfigurationException;
-import com.hailin.shrine.job.common.exception.JobException;
 import com.hailin.shrine.job.common.exception.JobSystemException;
 import com.hailin.shrine.job.core.basic.AbstractElasticJob;
 import com.hailin.shrine.job.core.basic.JobRegistry;
-import com.hailin.shrine.job.core.basic.JobTypeManager;
 import com.hailin.shrine.job.core.basic.analyse.AnalyseService;
 import com.hailin.shrine.job.core.basic.control.ReportService;
 import com.hailin.shrine.job.core.basic.election.LeaderElectionService;
 import com.hailin.shrine.job.core.basic.execution.ExecutionContextService;
 import com.hailin.shrine.job.core.basic.execution.ExecutionService;
 import com.hailin.shrine.job.core.basic.failover.FailoverService;
-import com.hailin.shrine.job.core.basic.listener.ListenerManager;
+import com.hailin.shrine.job.core.config.JobConfiguration;
+import com.hailin.shrine.job.core.listener.ListenerManager;
 import com.hailin.shrine.job.core.basic.schdule.SchedulerFacade;
 import com.hailin.shrine.job.core.basic.schdule.ShrineJobFacade;
 import com.hailin.shrine.job.core.basic.server.ServerService;
@@ -26,7 +25,6 @@ import com.hailin.shrine.job.core.basic.threads.TaskQueue;
 import com.hailin.shrine.job.core.executor.LimitMaxJobService;
 import com.hailin.shrine.job.core.executor.ShrineExecutorService;
 import com.hailin.shrine.job.core.job.JobFacade;
-import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.job.trigger.ShrineScheduler;
 import com.hailin.shrine.job.core.job.type.script.ScriptJob;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
@@ -35,6 +33,7 @@ import com.hailin.shrine.job.core.schedule.JobScheduleController;
 import com.hailin.shrine.job.core.schedule.JobShutdownHookPlugin;
 import com.hailin.shrine.job.core.schedule.ShrineJob;
 import com.hailin.shrine.job.core.service.ConfigurationService;
+import lombok.Setter;
 import org.apache.curator.framework.CuratorFramework;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
@@ -55,6 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 作业调度器
  * @author zhanghailin
  */
+@Setter
 public class JobScheduler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JobScheduler.class);
@@ -125,9 +125,9 @@ public class JobScheduler {
         this.jobNodeStorage = new JobNodeStorage(regCenter , jobConfig);
         zkCacheManager = new ZkCacheManager((CuratorFramework) regCenter.getRawClient(), jobName,
                 executorName);
-        configService= new ConfigurationService(this);
-        schedulerFacade = new SchedulerFacade(regCenter, currentConf.getJobName());
-        jobFacade = new ShrineJobFacade(regCenter, currentConf.getJobName());
+        configService= new ConfigurationService(currentConf.getJobName() ,regCenter);
+        schedulerFacade = new SchedulerFacade( currentConf.getJobName() , regCenter);
+        jobFacade = new ShrineJobFacade( currentConf.getJobName() , regCenter);
 
     }
 
@@ -191,7 +191,7 @@ public class JobScheduler {
         serverService.clearRunOneTimePath();
         serverService.clearStopOneTimePath();
         serverService.resetCount();
-        statisticsService.startProcesCountJob();
+//        statisticsService.startProcesCountJob();
     }
 
 
@@ -340,9 +340,9 @@ public class JobScheduler {
     /**
      * 重启统计处理数据数量的任务
      */
-    public void rescheduleProcessCountJob(){
-        statisticsService.startProcesCountJob();
-    }
+//    public void rescheduleProcessCountJob(){
+//        statisticsService.startProcesCountJob();
+//    }
 
 
     public ReportService getReportService() {

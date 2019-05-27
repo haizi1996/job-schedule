@@ -1,16 +1,18 @@
 package com.hailin.shrine.job.core.basic.server;
 
-import com.hailin.shrine.job.core.basic.listener.AbstractJobListener;
-import com.hailin.shrine.job.core.basic.listener.AbstractListenerManager;
+import com.hailin.shrine.job.core.basic.config.ConfigurationNode;
+import com.hailin.shrine.job.core.listener.AbstractJobListener;
+import com.hailin.shrine.job.core.listener.AbstractListenerManager;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 import com.hailin.shrine.job.core.basic.threads.ShrineThreadFactory;
-import com.hailin.shrine.job.core.strategy.JobScheduler;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -25,8 +27,8 @@ public class JobOperationListenerManager extends AbstractListenerManager {
 
     private ExecutorService jobDeleteExecutorService;
 
-    public JobOperationListenerManager(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public JobOperationListenerManager(String jobName, CoordinatorRegistryCenter regCenter) {
+        super(jobName, regCenter);
     }
 
     @Override
@@ -57,7 +59,7 @@ public class JobOperationListenerManager extends AbstractListenerManager {
 
     class TriggerJobRunAtOnceListener extends  AbstractJobListener{
         @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data ,  String path) {
             if (isShutdown){
                 return;
             }
@@ -79,9 +81,9 @@ public class JobOperationListenerManager extends AbstractListenerManager {
             try {
                 byte[] data = event.getData().getData();
                 if (data != null) {
-                    transDataStr = new String(data, "UTF-8");
+                    transDataStr = new String(data, StandardCharsets.UTF_8);
                 }
-            } catch (UnsupportedEncodingException e) {
+            } catch (Exception e) {
                 LOGGER.error( jobName, "unexpected error", e);
             }
             return transDataStr;
@@ -90,7 +92,7 @@ public class JobOperationListenerManager extends AbstractListenerManager {
 
     class  JobDeleteListener extends AbstractJobListener{
         @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
             if (isShutdown){
                 return;
             }
@@ -115,7 +117,7 @@ public class JobOperationListenerManager extends AbstractListenerManager {
     class JobForcedToStopListener extends AbstractJobListener{
 
         @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event,String data ,  String path) {
             if (isShutdown){
                 return;
             }

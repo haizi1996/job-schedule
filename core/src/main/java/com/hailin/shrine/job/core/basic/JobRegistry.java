@@ -110,6 +110,16 @@ public class JobRegistry {
     }
 
     /**
+     * 获取作业是否在运行.
+     *
+     * @param jobName 作业名称
+     * @return 作业是否在运行
+     */
+    public boolean isJobRunning(final String jobName) {
+        Boolean result = jobRunningMap.get(jobName);
+        return null == result ? false : result;
+    }
+    /**
      * 终止任务调度.
      *
      * @param jobName 作业名称

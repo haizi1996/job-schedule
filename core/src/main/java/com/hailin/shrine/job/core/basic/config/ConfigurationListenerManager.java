@@ -3,9 +3,11 @@ package com.hailin.shrine.job.core.basic.config;
 import com.hailin.shrine.job.core.basic.execution.ExecutionContextService;
 import com.hailin.shrine.job.core.basic.execution.ExecutionService;
 import com.hailin.shrine.job.core.basic.failover.FailoverService;
-import com.hailin.shrine.job.core.basic.listener.AbstractJobListener;
-import com.hailin.shrine.job.core.basic.listener.AbstractListenerManager;
+import com.hailin.shrine.job.core.basic.sharding.ShardingService;
+import com.hailin.shrine.job.core.listener.AbstractJobListener;
+import com.hailin.shrine.job.core.listener.AbstractListenerManager;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.service.ConfigurationService;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.apache.curator.framework.CuratorFramework;
@@ -23,26 +25,20 @@ public class ConfigurationListenerManager extends AbstractListenerManager {
 
     private ExecutionContextService executionContextService;
 
-    private ExecutionService executionService;
+    private ShardingService shardingService;
 
     private FailoverService failoverService;
 
     private ConfigurationService configurationService;
 
-    public ConfigurationListenerManager(JobScheduler jobScheduler) {
-        super(jobScheduler);
-        jobConfiguration = jobScheduler.getCurrentConf();
-        jobName = jobScheduler.getJobName();
-        executionContextService = jobScheduler.getExecutionContextService();
-        executionService = jobScheduler.getExecutionService();
-        failoverService = jobScheduler.getFailoverService();
-        configurationService = jobScheduler.getConfigService();
+    public ConfigurationListenerManager(String jobName, CoordinatorRegistryCenter regCenter) {
+        super(jobName, regCenter);
     }
 
     @Override
     public void start() {
-        zkCacheManager.addTreeCacheListener(new CronPathListener(),
-                JobNodePath.getNodeFullPath(jobName, ConfigurationNode.CRON), 0);
+//        zkCacheManager.addTreeCacheListener(new CronPathListener(),
+//                JobNodePath.getNodeFullPath(jobName, ConfigurationNode.CRON), 0);
         zkCacheManager.addTreeCacheListener(new DownStreamPathListener(),
                 JobNodePath.getNodeFullPath(jobName, ConfigurationNode.DOWN_STREAM), 0);
         zkCacheManager.addTreeCacheListener(new EnabledPathListener(),
@@ -58,30 +54,30 @@ public class ConfigurationListenerManager extends AbstractListenerManager {
         zkCacheManager.closeTreeCache(JobNodePath.getNodeFullPath(jobName, ConfigurationNode.ENABLED), 0);
     }
 
-    class CronPathListener extends  AbstractJobListener{
-
-        @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
-            if (isShutdown) {
-                return;
-            }
-            if (ConfigurationNode.isDownStreamPath(jobName, path)
-                    && TreeCacheEvent.Type.NODE_UPDATED == event.getType()) {
-                LOGGER.info(jobName, "{} 's cron update", jobName);
-
-                String cronFromZk = jobConfiguration.getCronFromZk(); // will update local cron cache
-                if (!jobScheduler.getPreviousConfig().getCron().equals(cronFromZk)) {
-                    jobScheduler.getPreviousConfig().setCron(cronFromZk);
-                    jobScheduler.reInitializeTrigger();
-                    executionService.updateNextFireTime(executionContextService.getShardingItems());
-                }
-            }
-        }
-    }
+//    class CronPathListener extends  AbstractJobListener{
+//
+//        @Override
+//        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data , String path) {
+//            if (isShutdown) {
+//                return;
+//            }
+//            if (ConfigurationNode.isDownStreamPath(jobName, path)
+//                    && TreeCacheEvent.Type.NODE_UPDATED == event.getType()) {
+//                LOGGER.info(jobName, "{} 's cron update", jobName);
+//
+//                String cronFromZk = jobConfiguration.getCronFromZk(); // will update local cron cache
+//                if (!jobScheduler.getPreviousConfig().getCron().equals(cronFromZk)) {
+//                    jobScheduler.getPreviousConfig().setCron(cronFromZk);
+//                    jobScheduler.reInitializeTrigger();
+//                    executionService.updateNextFireTime(shardingService.getLocalShardingItems());
+//                }
+//            }
+//        }
+//    }
 
     class EnabledPathListener extends AbstractJobListener{
         @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
             if (isShutdown){
                 return;
             }
@@ -115,7 +111,7 @@ public class ConfigurationListenerManager extends AbstractListenerManager {
 
     class DownStreamPathListener extends AbstractJobListener{
         @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String eventData , String path) {
             if (isShutdown){
                 return;
             }

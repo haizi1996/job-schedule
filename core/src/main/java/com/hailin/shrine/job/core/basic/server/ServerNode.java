@@ -1,5 +1,6 @@
 package com.hailin.shrine.job.core.basic.server;
 
+import com.hailin.shrine.job.core.basic.JobRegistry;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 
 /**
@@ -85,14 +86,13 @@ public class ServerNode {
     }
 
     /**
-     * 判断给定路径是否为作业服务器状态路径.
+     * 判断给定路径是否为本地作业服务器路径.
      *
      * @param path 待判断的路径
-     * @return 是否为作业服务器状态路径
+     * @return 是否为本地作业服务器路径
      */
-    public static boolean isServerStatusPath(final String jobName, final String path) {
-        return path.startsWith(JobNodePath.getNodeFullPath(jobName, ServerNode.ROOT))
-                && path.endsWith(ServerNode.STATUS_APPENDIX);
+    public boolean isLocalServerPath(final String path) {
+        return path.equals(jobNodePath.getFullPath(String.format(SERVERS, JobRegistry.getInstance().getJobInstance(jobName).getIp())));
     }
 
     /**

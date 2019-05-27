@@ -2,9 +2,9 @@
 package com.hailin.shrine.job.core.job.executor.type;
 
 
+import com.hailin.shrine.job.core.config.dataflow.DataflowJobConfiguration;
 import com.hailin.shrine.job.core.executor.ShardingContext;
 import com.hailin.shrine.job.core.job.JobFacade;
-import com.hailin.shrine.job.core.job.config.dataflow.DataflowJobConfiguration;
 import com.hailin.shrine.job.core.job.executor.AbstractShrineJobExecutor;
 import com.hailin.shrine.job.core.job.type.dataflow.DataflowJob;
 

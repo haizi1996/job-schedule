@@ -2,6 +2,7 @@ package com.hailin.shrine.job.core.executor;
 
 import com.hailin.shrine.job.common.util.SystemEnvProperties;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import com.hailin.shrine.job.sharding.node.ShrineExecutorsNode;
 import org.slf4j.Logger;
@@ -14,10 +15,9 @@ public class LimitMaxJobService extends AbstractShrineService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LimitMaxJobService.class);
 
-    public LimitMaxJobService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public LimitMaxJobService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
+        super(jobName, coordinatorRegistryCenter);
     }
-
 
     /**
      * 如果当前作业为新增作业，而且超出该域最大作业数量限制，将打印警告日志，返回false; 否则返回true

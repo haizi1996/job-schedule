@@ -1,5 +1,6 @@
 package com.hailin.shrine.job.core.reg.exception;
 
+import com.hailin.shrine.job.common.util.LogEvents;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

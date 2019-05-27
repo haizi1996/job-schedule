@@ -1,12 +1,12 @@
 
 
-package com.hailin.shrine.job.core.job.config;
+package com.hailin.shrine.job.core.config;
 
 import com.hailin.shrine.job.common.util.GsonFactory;
-import com.hailin.shrine.job.core.job.executor.ExecutorServiceHandler;
-import com.hailin.shrine.job.core.job.executor.handler.DefaultExecutorServiceHandler;
-import com.hailin.shrine.job.core.job.executor.handler.DefaultJobExceptionHandler;
-import com.hailin.shrine.job.core.job.executor.handler.JobExceptionHandler;
+import com.hailin.shrine.job.core.handler.DefaultExecutorServiceHandler;
+import com.hailin.shrine.job.core.handler.DefaultJobExceptionHandler;
+import com.hailin.shrine.job.core.handler.ExecutorServiceHandler;
+import com.hailin.shrine.job.core.handler.JobExceptionHandler;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

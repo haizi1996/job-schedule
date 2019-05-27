@@ -76,43 +76,10 @@ public abstract class AbstractElasticJob implements Stoppable {
         running = true;
     }
 
-    public void init() {
-        Class<? extends Trigger> triggerClass = configurationService.getJobType().getTriggerClass();
-        Trigger trigger = null;
-        try {
-            trigger = triggerClass.newInstance();
-            trigger.init(this);
-        }catch (Exception e){
-            LOGGER.error("Trigger init failed",e);
-            throw new JobException(e);
-        }
-        scheduler = new ShrineScheduler(this , trigger);
-        scheduler.start();
-        getExecutorService();
-    }
+
     @Override
     public void shutdown() {
-        if (scheduler != null){
-            //关闭调度器
-            scheduler.shutdown();
-            //关闭执行业务的线程池，使得不能再提交新的业务任务
-            jobScheduler.shutdownExecutorService();
-            if (scheduler.isTermibated()){
-                return;
-            }
-            if (configurationService.getJobType().isShell()
-            && ! configurationService.isJobEnabled()){
-                // 如果Shell作业业务进程有子进程，我们可能不能完全中止其子进程。
-                // 所以，对于禁用的Shell作业，不中止业务。因为，作业处于禁用状态，说明是人为介入的可控状态。
-                // 另外，在该Executor再次启动该作业前，会检查该作业是否正在运行，如果正在运行并且仍然处于禁用状态，则会相应的持久化相关状态到zk，防止重入；如果正在运行并且已经处于启用状态，则会中止其进程。
-                LOGGER.warn( jobName, "the job is the disabled shell job, will not be aborted");
-            }else{
-                abort();
-                scheduler.awaitTermination(500L);
-            }
 
-
-        }
     }
 
     public ConfigurationService getConfigurationService() {
@@ -139,9 +106,6 @@ public abstract class AbstractElasticJob implements Stoppable {
         this.jobName = jobName;
     }
 
-    public ExecutorService getExecutorService() {
-        return jobScheduler.getExecutorService();
-    }
     /**
      *  进行任务执行
      * @param currentTriggered 当前执行数据
@@ -155,19 +119,7 @@ public abstract class AbstractElasticJob implements Stoppable {
             return;
         }
         JobExecutionMultipleShardingContext shardingContext = null;
-        try {
-            if (!configurationService.isEnabledReport() || failoverService.getLocalHostFailoverItems().isEmpty()){
-                shardingService.shardingIfNecessary();
-            }
 
-            if (!configurationService.isJobEnabled()){
-                LOGGER.debug( jobName, "{} is disabled, cannot be continued, do nothing about business.",
-                        jobName);
-                return;
-            }
-        }catch (Exception e){
-
-        }
     }
     protected boolean mayRunDownStream(final JobExecutionMultipleShardingContext shardingContext) {
         return true;

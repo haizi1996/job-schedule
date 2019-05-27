@@ -1,4 +1,4 @@
-package com.hailin.shrine.job.core.basic.listener;
+package com.hailin.shrine.job.core.listener;
 
 import com.google.common.base.Charsets;
 import org.apache.curator.framework.CuratorFramework;

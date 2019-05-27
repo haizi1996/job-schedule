@@ -1,15 +1,15 @@
 package com.hailin.shrine.job.core.basic.execution;
 
-import com.google.common.collect.Lists;
+import com.google.common.base.Joiner;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
-import com.hailin.shrine.job.core.basic.ShrineExecutionContext;
-import com.hailin.shrine.job.core.basic.failover.FailoverService;
-import com.hailin.shrine.job.core.basic.sharding.context.JobExecutionMultipleShardingContext;
-import com.hailin.shrine.job.core.job.trigger.Triggered;
+import com.hailin.shrine.job.core.basic.JobRegistry;
+import com.hailin.shrine.job.core.basic.sharding.ShardingNode;
+import com.hailin.shrine.job.core.config.JobConfiguration;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.service.ConfigurationService;
-import com.hailin.shrine.job.core.strategy.JobScheduler;
+import com.hailin.shrine.job.core.strategy.JobInstance;
 
-import java.util.List;
+import java.util.*;
 
 /**
  * 作业运行时上下文服务
@@ -17,61 +17,70 @@ import java.util.List;
  */
 public class ExecutionContextService extends AbstractShrineService {
 
-    private ConfigurationService configurationService;
+    private ConfigurationService configService;
 
-    private FailoverService failoverService;
 
-    public ExecutionContextService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public ExecutionContextService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
+        super(jobName, coordinatorRegistryCenter);
+        this.configService = new ConfigurationService(jobName , coordinatorRegistryCenter);
     }
 
     @Override
     public void start() {
-        configurationService = jobScheduler.getConfigService();
+//        configService = jobScheduler.getConfigService();
 //        failoverService =
     }
 
 
-    public JobExecutionMultipleShardingContext getJobExecutionMultipleShardingContext(final Triggered triggered){
-        ShrineExecutionContext result = new ShrineExecutionContext();
-        result.setJobName(configurationService.getJobName());
-        result.setShardingTotalCount(configurationService.getShardingTotalCount());
-        result.setTriggered(triggered);
-        List<Integer> shardingItems = getShardingItems();
-        boolean isEnabledReport = configurationService.isEnabledReport();
-        if(isEnabledReport){
-            removeRunningItems(shardingItems);
+    /**
+     * 获取当前作业服务器分片上下文.
+     *
+     * @param shardingItems 分片项
+     * @return 分片上下文
+     */
+    public ShardingContexts getJobShardingContext(final List<Integer> shardingItems) {
+        JobConfiguration liteJobConfig = configService.load(false);
+        removeRunningIfMonitorExecution(liteJobConfig.isMonitorExecution(), shardingItems);
+        if (shardingItems.isEmpty()) {
+            return new ShardingContexts(buildTaskId(liteJobConfig, shardingItems), liteJobConfig.getJobName(), liteJobConfig.getTypeConfig().getCoreConfig().getShardingTotalCount(),
+                    liteJobConfig.getTypeConfig().getCoreConfig().getJobParameter(), Collections.<Integer, String>emptyMap());
         }
-        result.setShardingItems(shardingItems);
-        result.setjob
-
+        Map<Integer, String> shardingItemParameterMap = new ShardingItemParameters(liteJobConfig.getTypeConfig().getCoreConfig().getShardingItemParameters()).getMap();
+        return new ShardingContexts(buildTaskId(liteJobConfig, shardingItems), liteJobConfig.getJobName(), liteJobConfig.getTypeConfig().getCoreConfig().getShardingTotalCount(),
+                liteJobConfig.getTypeConfig().getCoreConfig().getJobParameter(), getAssignedShardingItemParameterMap(shardingItems, shardingItemParameterMap));
     }
 
-    private void removeRunningItems(final List<Integer> items){
-        List<Integer> toBeRemoveItems = Lists.newArrayList();
-        for (int each:  items  ) {
-            if(isRunningItem(each)){
-                toBeRemoveItems.add(each);
+
+
+
+    private String buildTaskId(final JobConfiguration liteJobConfig, final List<Integer> shardingItems) {
+        JobInstance jobInstance = JobRegistry.getInstance().getJobInstance(jobName);
+        return Joiner.on("@-@").join(liteJobConfig.getJobName(), Joiner.on(",").join(shardingItems), "READY",
+                null == jobInstance.getJobInstanceId() ? "127.0.0.1@-@1" : jobInstance.getJobInstanceId());
+    }
+
+    private boolean isRunning(final int shardingItem) {
+        return jobNodeStorage.isJobNodeExisted(ShardingNode.getRunningNode(shardingItem));
+    }
+
+    private Map<Integer, String> getAssignedShardingItemParameterMap(final List<Integer> shardingItems, final Map<Integer, String> shardingItemParameterMap) {
+        Map<Integer, String> result = new HashMap<>(shardingItemParameterMap.size(), 1);
+        for (int each : shardingItems) {
+            result.put(each, shardingItemParameterMap.get(each));
+        }
+        return result;
+    }
+    private void removeRunningIfMonitorExecution(final boolean monitorExecution, final List<Integer> shardingItems) {
+        if (!monitorExecution) {
+            return;
+        }
+        List<Integer> runningShardingItems = new ArrayList<>(shardingItems.size());
+        for (int each : shardingItems) {
+            if (isRunning(each)) {
+                runningShardingItems.add(each);
             }
         }
-        items.removeAll(toBeRemoveItems);
-    }
-
-    private boolean isRunningItem(final int item){
-        return jobScheduler.getJobNodeStorage().isJobNodeExisted(ExecutionNode.getRunningNode(item));
-    }
-
-    /**
-     * 获取分片项列表
-     * @return 分片项列表
-     */
-    public List<Integer> getShardingItems(){
-
-//        List<Integer> shardingItems = jobScheduler.gets
-        boolean isEnabledReport = configurationService.isEnabledReport();
-        if (configurationService.i)
-
-        return Lists.newArrayList();
+        shardingItems.removeAll(runningShardingItems);
     }
 
 

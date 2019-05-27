@@ -1,4 +1,4 @@
-package com.hailin.shrine.job.core.job.executor.handler;
+package com.hailin.shrine.job.core.handler;
 
 /**
  * 作业异常处理器
@@ -11,5 +11,5 @@ public interface JobExceptionHandler {
      * @param jobName 作业名
      * @param cause 异常原因
      */
-    void handleException(String jobName , Throwable cause);
+    void handleException(String jobName, Throwable cause);
 }

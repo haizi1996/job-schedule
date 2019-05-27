@@ -17,6 +17,7 @@ import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -74,7 +75,7 @@ public class ExecutionService extends AbstractShrineService {
      * 注册作业启动信息
      *
      */
-    public void registerJobBegin(final JobExecutionMultipleShardingContext shardingContexts){
+    public void registerJobBegin(final ShardingContexts shardingContexts){
         JobRegistry.getInstance().setJobRunning(jobName, true);
         if (!configurationService.load(true).isMonitorExecution()) {
             return;
@@ -88,7 +89,7 @@ public class ExecutionService extends AbstractShrineService {
      *
      * @param shardingContexts 分片上下文
      */
-    public void registerJobCompleted(final JobExecutionMultipleShardingContext shardingContexts) {
+    public void registerJobCompleted(final ShardingContexts shardingContexts) {
         JobRegistry.getInstance().setJobRunning(jobName, false);
         if (!configurationService.load(true).isMonitorExecution()) {
             return;
@@ -133,6 +134,17 @@ public class ExecutionService extends AbstractShrineService {
             }
         }
     }
+
+    /**
+     * 清除任务被错过执行的标记.
+     *
+     * @param items 需要清除错过执行的任务分片项
+     */
+    public void clearMisfire(final Collection<Integer> items) {
+        for (int each : items) {
+            jobNodeStorage.removeJobNodeIfExisted(ShardingNode.getMisfireNode(each));
+        }
+    }
     /**
      * 清除分配分片序号的运行状态
      * @param items 需要清理的分片项列表
@@ -155,7 +167,12 @@ public class ExecutionService extends AbstractShrineService {
     public void removeExecutionInfo() {
         getJobNodeStorage().removeJobNodeIfExisted(ExecutionNode.ROOT);
     }
-
+    /**
+     * 清除全部分片的运行状态.
+     */
+    public void clearAllRunningInfo() {
+        clearRunningInfo(getAllItems());
+    }
     /**
      * 判断该分片是否已完成.
      *
@@ -187,7 +204,7 @@ public class ExecutionService extends AbstractShrineService {
      * 判断分片项是否还有执行中的作业
      * @param allItems 需要判断的分片项列表
      */
-    private boolean hasRunningItems(List<Integer> allItems) {
+    private boolean hasRunningItems(Collection<Integer> allItems) {
         return allItems.stream().anyMatch(item ->getJobNodeStorage().isJobNodeExisted(ExecutionNode.getRunningNode(item)));
     }
 
@@ -217,5 +234,49 @@ public class ExecutionService extends AbstractShrineService {
         for (int each : items) {
             jobNodeStorage.createJobNodeIfNeeded(ShardingNode.getMisfireNode(each));
         }
+    }
+    /**
+     * 如果当前分片项仍在运行则设置任务被错过执行的标记.
+     *
+     * @param items 需要设置错过执行的任务分片项
+     * @return 是否错过本次执行
+     */
+    public boolean misfireIfHasRunningItems(final Collection<Integer> items) {
+        if (!hasRunningItems(items)) {
+            return false;
+        }
+        setMisfire(items);
+        return true;
+    }
+    /**
+     * 获取标记被错过执行的任务分片项.
+     *
+     * @param items 需要获取标记被错过执行的任务分片项
+     * @return 标记被错过执行的任务分片项
+     */
+    public List<Integer> getMisfiredJobItems(final Collection<Integer> items) {
+        List<Integer> result = new ArrayList<>(items.size());
+        for (int each : items) {
+            if (jobNodeStorage.isJobNodeExisted(ShardingNode.getMisfireNode(each))) {
+                result.add(each);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 获取禁用的任务分片项.
+     *
+     * @param items 需要获取禁用的任务分片项
+     * @return 禁用的任务分片项
+     */
+    public List<Integer> getDisabledItems(final List<Integer> items) {
+        List<Integer> result = new ArrayList<>(items.size());
+        for (int each : items) {
+            if (jobNodeStorage.isJobNodeExisted(ShardingNode.getDisabledNode(each))) {
+                result.add(each);
+            }
+        }
+        return result;
     }
 }

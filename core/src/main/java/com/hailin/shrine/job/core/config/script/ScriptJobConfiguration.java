@@ -1,10 +1,8 @@
 
-package com.hailin.shrine.job.core.job.config.script;
-
-
-import com.hailin.shrine.job.core.job.config.JobCoreConfiguration;
-import com.hailin.shrine.job.core.job.config.JobType;
-import com.hailin.shrine.job.core.job.config.JobTypeConfiguration;
+package com.hailin.shrine.job.core.config.script;
+import com.hailin.shrine.job.core.config.JobConfiguration;
+import com.hailin.shrine.job.core.config.JobType;
+import com.hailin.shrine.job.core.config.JobTypeConfiguration;
 import com.hailin.shrine.job.core.job.type.script.ScriptJob;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public final class ScriptJobConfiguration implements JobTypeConfiguration {
     
-    private final JobCoreConfiguration coreConfig;
+    private final JobConfiguration coreConfig;
     
     private final JobType jobType = JobType.SCRIPT;
     

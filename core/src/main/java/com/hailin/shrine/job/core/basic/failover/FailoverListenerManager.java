@@ -1,20 +1,19 @@
 package com.hailin.shrine.job.core.basic.failover;
 
 import com.google.common.collect.Sets;
+import com.hailin.shrine.job.common.util.JsonUtils;
 import com.hailin.shrine.job.core.basic.JobRegistry;
 import com.hailin.shrine.job.core.basic.config.ConfigurationNode;
 import com.hailin.shrine.job.core.basic.execution.ExecutionNode;
 import com.hailin.shrine.job.core.basic.instance.InstanceNode;
-import com.hailin.shrine.job.core.basic.listener.AbstractJobListener;
-import com.hailin.shrine.job.core.basic.listener.AbstractListenerManager;
-import com.hailin.shrine.job.core.basic.server.ServerStatus;
+import com.hailin.shrine.job.core.config.JobConfiguration;
+import com.hailin.shrine.job.core.listener.AbstractJobListener;
+import com.hailin.shrine.job.core.listener.AbstractListenerManager;
 import com.hailin.shrine.job.core.basic.sharding.ShardingService;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
-import com.hailin.shrine.job.core.job.config.JobConfiguration;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.service.ConfigurationService;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.cache.NodeCacheListener;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,38 +74,38 @@ public class FailoverListenerManager extends AbstractListenerManager {
         return null != jobConfig && jobConfig.isFailover();
     }
 
-    /**
-     * 失效转移的监听器
-     */
-    class ExecutionPathListener extends AbstractJobListener{
-
-        @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
-            try {
-                if(isShutDown){
-                    return;
-                }
-                //没有失效的分片项
-                if (executionPath.equals(path)){
-                    return;
-                }
-                int item = getItem(path);
-                String runningPath = JobNodePath.getNodeFullPath(jobName , ExecutionNode.getRunningNode(item));
-                String failoverPath = JobNodePath.getNodeFullPath(jobName , FailoverNode.getExecutionFailoverNode(item));
-                switch (event.getType()){
-                    case NODE_ADDED:
-                        zkCacheManager.addNodeCacheListener();
-                }
-            }catch (Throwable throwable){
-
-            }
-        }
-
-        //获取分片项
-        private int getItem(String path){
-            return Integer.parseInt(path.substring(path.lastIndexOf("/")+ 1));
-        }
-    }
+//    /**
+//     * 失效转移的监听器
+//     */
+//    class ExecutionPathListener extends AbstractJobListener{
+//
+//        @Override
+//        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
+//            try {
+//                if(isShutDown){
+//                    return;
+//                }
+//                //没有失效的分片项
+//                if (executionPath.equals(path)){
+//                    return;
+//                }
+//                int item = getItem(path);
+//                String runningPath = JobNodePath.getNodeFullPath(jobName , ExecutionNode.getRunningNode(item));
+//                String failoverPath = JobNodePath.getNodeFullPath(jobName , FailoverNode.getExecutionFailoverNode(item));
+//                switch (event.getType()){
+//                    case NODE_ADDED:
+//                        zkCacheManager.addNodeCacheListener();
+//                }
+//            }catch (Throwable throwable){
+//
+//            }
+//        }
+//
+//        //获取分片项
+//        private int getItem(String path){
+//            return Integer.parseInt(path.substring(path.lastIndexOf("/")+ 1));
+//        }
+//    }
 
 
 //    class RunningPathListener implements NodeCacheListener {
@@ -167,7 +166,7 @@ public class FailoverListenerManager extends AbstractListenerManager {
 
         @Override
         protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
-            if (configNode.isConfigPath(path) && TreeCacheEvent.Type.NODE_UPDATED == eventType && !LiteJobConfigurationGsonFactory.fromJson(data).isFailover()) {
+            if (configNode.isConfigPath(path) && TreeCacheEvent.Type.NODE_UPDATED == event.getType() && !JsonUtils.fromJson(data , JobConfiguration.class).isFailover()) {
                 failoverService.removeFailoverInfo();
             }
         }

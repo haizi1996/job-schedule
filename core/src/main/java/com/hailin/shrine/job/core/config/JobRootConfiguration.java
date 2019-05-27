@@ -1,4 +1,4 @@
-package com.hailin.shrine.job.core.job.config;
+package com.hailin.shrine.job.core.config;
 
 /**
  * 作业配置根接口

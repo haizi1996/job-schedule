@@ -3,8 +3,13 @@ package com.hailin.shrine.job.core.basic.control;
 import com.google.common.collect.Maps;
 import com.hailin.shrine.job.common.util.LogEvents;
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
+import com.hailin.shrine.job.core.basic.execution.ExecutionContextService;
 import com.hailin.shrine.job.core.basic.execution.ExecutionInfo;
 import com.hailin.shrine.job.core.basic.execution.ExecutionNode;
+import com.hailin.shrine.job.core.basic.execution.ExecutionService;
+import com.hailin.shrine.job.core.basic.sharding.ShardingListenerManager;
+import com.hailin.shrine.job.core.basic.sharding.ShardingService;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,8 +23,12 @@ public class ReportService extends AbstractShrineService {
 
     private Map<Integer , ExecutionInfo> infoMap = Maps.newHashMap();
 
-    public ReportService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+
+    private ShardingService shardingService;
+
+    public ReportService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
+        super(jobName, coordinatorRegistryCenter);
+        shardingService = new ShardingService(jobName ,coordinatorRegistryCenter);
     }
 
     public void reportDataToZK(){
@@ -27,7 +36,7 @@ public class ReportService extends AbstractShrineService {
             if(infoMap.size() == 0){
                 return;
             }
-            List<Integer> shardingItems = jobScheduler.getExecutionContextService().getShardingItems();
+            List<Integer> shardingItems = shardingService.getLocalShardingItems();
 
             for (Map.Entry<Integer , ExecutionInfo> entry : infoMap.entrySet()){
                 Integer item = entry.getKey();
@@ -39,19 +48,19 @@ public class ReportService extends AbstractShrineService {
                     continue;
                 }
                 if (info.getLastBeginTime() != null){
-                    jobScheduler.getJobNodeStorage().replaceJobNode(ExecutionNode.getLastBeginTimeNode(item) , info.getLastBeginTime());
+                    getJobNodeStorage().replaceJobNode(ExecutionNode.getLastBeginTimeNode(item) , info.getLastBeginTime());
                 }
                 if (info.getLastCompleteTime() != null) {
-                    jobScheduler.getJobNodeStorage().replaceJobNode(ExecutionNode.getLastCompleteTimeNode(item),
+                    getJobNodeStorage().replaceJobNode(ExecutionNode.getLastCompleteTimeNode(item),
                             info.getLastCompleteTime());
                 }
                 if (info.getNextFireTime() != null) {
-                    jobScheduler.getJobNodeStorage()
+                    getJobNodeStorage()
                             .replaceJobNode(ExecutionNode.getNextFireTimeNode(item), info.getNextFireTime());
                 }
-                jobScheduler.getJobNodeStorage().replaceJobNode(ExecutionNode.getJobLog(item),
+                getJobNodeStorage().replaceJobNode(ExecutionNode.getJobLog(item),
                         (info.getJobLog() == null ? "" : info.getJobLog()));
-                jobScheduler.getJobNodeStorage().replaceJobNode(ExecutionNode.getJobMsg(item),
+                getJobNodeStorage().replaceJobNode(ExecutionNode.getJobMsg(item),
                         (info.getJobMsg() == null ? "" : info.getJobMsg()));
                 LOGGER.info( LogEvents.ExecutorEvent.COMMON, "done flushed {} to zk.", info);
             }

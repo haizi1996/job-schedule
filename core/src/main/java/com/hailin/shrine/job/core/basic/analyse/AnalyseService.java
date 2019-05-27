@@ -2,6 +2,7 @@ package com.hailin.shrine.job.core.basic.analyse;
 
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
 import com.hailin.shrine.job.core.basic.statistics.ProcessCountStatistics;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 
 /**
@@ -10,9 +11,10 @@ import com.hailin.shrine.job.core.strategy.JobScheduler;
  */
 public class AnalyseService extends AbstractShrineService {
 
-    public AnalyseService( final JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public AnalyseService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
+        super(jobName, coordinatorRegistryCenter);
     }
+
     @Override
     public void start(){
         super.start();

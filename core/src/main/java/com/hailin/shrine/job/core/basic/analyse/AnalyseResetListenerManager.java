@@ -1,9 +1,10 @@
 package com.hailin.shrine.job.core.basic.analyse;
 
-import com.hailin.shrine.job.core.basic.listener.AbstractJobListener;
-import com.hailin.shrine.job.core.basic.listener.AbstractListenerManager;
+import com.hailin.shrine.job.core.listener.AbstractJobListener;
+import com.hailin.shrine.job.core.listener.AbstractListenerManager;
 import com.hailin.shrine.job.core.basic.statistics.ProcessCountStatistics;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
@@ -16,9 +17,11 @@ public class AnalyseResetListenerManager extends AbstractListenerManager {
 
     private boolean isShutdown = false;
 
-    public AnalyseResetListenerManager(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public AnalyseResetListenerManager(String jobName, CoordinatorRegistryCenter regCenter, boolean isShutdown) {
+        super(jobName, regCenter);
+        this.isShutdown = isShutdown;
     }
+
     @Override
     public void start() {
         zkCacheManager.addTreeCacheListener(new AnalyseResetPathListener(),
@@ -28,7 +31,7 @@ public class AnalyseResetListenerManager extends AbstractListenerManager {
     class AnalyseResetPathListener extends AbstractJobListener {
 
         @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data , String path) {
             if (isShutdown) {
                 return;
             }

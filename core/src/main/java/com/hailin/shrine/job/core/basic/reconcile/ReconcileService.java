@@ -5,7 +5,7 @@ package com.hailin.shrine.job.core.basic.reconcile;
 import com.google.common.util.concurrent.AbstractScheduledService;
 import com.hailin.shrine.job.core.basic.election.LeaderElectionService;
 import com.hailin.shrine.job.core.basic.sharding.ShardingService;
-import com.hailin.shrine.job.core.job.config.JobConfiguration;
+import com.hailin.shrine.job.core.config.JobConfiguration;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.service.ConfigurationService;
 import lombok.extern.slf4j.Slf4j;

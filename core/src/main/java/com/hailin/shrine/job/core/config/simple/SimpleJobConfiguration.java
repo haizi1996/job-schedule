@@ -1,10 +1,10 @@
 
-package com.hailin.shrine.job.core.job.config.simple;
+package com.hailin.shrine.job.core.config.simple;
 
 
-import com.hailin.shrine.job.core.job.config.JobCoreConfiguration;
-import com.hailin.shrine.job.core.job.config.JobType;
-import com.hailin.shrine.job.core.job.config.JobTypeConfiguration;
+import com.hailin.shrine.job.core.config.JobConfiguration;
+import com.hailin.shrine.job.core.config.JobType;
+import com.hailin.shrine.job.core.config.JobTypeConfiguration;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public final class SimpleJobConfiguration implements JobTypeConfiguration {
     
-    private final JobCoreConfiguration coreConfig;
+    private final JobConfiguration coreConfig;
     
     private final JobType jobType = JobType.SIMPLE;
     

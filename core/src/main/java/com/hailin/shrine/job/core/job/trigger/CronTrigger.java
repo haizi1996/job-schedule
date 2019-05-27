@@ -20,6 +20,10 @@ public class CronTrigger extends AbstractTrigger {
     private static final Logger LOGGER = LoggerFactory.getLogger(CronTrigger.class);
 
     @Override
+    public Trigger createQuartzTrigger() {
+        return null;
+    }
+
     public Trigger createQuartzTrigger(boolean yes, String upStreamDataStr) {
 
         String cron = job.getConfigurationService().getCron();

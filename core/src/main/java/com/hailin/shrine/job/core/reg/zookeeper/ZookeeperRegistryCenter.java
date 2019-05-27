@@ -23,6 +23,11 @@ import java.util.List;
  */
 public class ZookeeperRegistryCenter implements CoordinatorRegistryCenter {
 
+    @Override
+    public void addCacheData(String cachePath) {
+
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ZookeeperRegistryCenter.class);
 
     private static final String SLASH_CONSTNAT = "/";
@@ -223,5 +228,12 @@ public class ZookeeperRegistryCenter implements CoordinatorRegistryCenter {
     @Override
     public Object getRawCache(String cachePath) {
         return null;
+    }
+
+    public ZookeeperRegistryCenter(ZookeeperConfiguration zkConfig, CuratorFramework client, int sessionTimeout, String executorName) {
+        this.zkConfig = zkConfig;
+        this.client = client;
+        this.sessionTimeout = sessionTimeout;
+        this.executorName = executorName;
     }
 }

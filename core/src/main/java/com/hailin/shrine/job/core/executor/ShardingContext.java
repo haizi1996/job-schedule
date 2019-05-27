@@ -2,6 +2,7 @@ package com.hailin.shrine.job.core.executor;
 
 
 
+import com.hailin.shrine.job.core.basic.execution.ShardingContexts;
 import com.hailin.shrine.job.core.basic.sharding.context.AbstractJobExecutionShardingContext;
 import lombok.Getter;
 
@@ -48,7 +49,7 @@ public final class ShardingContext implements Serializable {
 
 
 
-    public ShardingContext(final AbstractJobExecutionShardingContext shardingContext, final int shardingItem) {
+    public ShardingContext(final ShardingContexts shardingContext, final int shardingItem) {
         jobName = shardingContext.getJobName();
         taskId = shardingContext.getTaskId();
         shardingTotalCount = shardingContext.getShardingTotalCount();

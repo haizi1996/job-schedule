@@ -1,4 +1,4 @@
-package com.hailin.shrine.job.core.basic.listener;
+package com.hailin.shrine.job.core.listener;
 
 import com.hailin.shrine.job.core.basic.JobRegistry;
 import com.hailin.shrine.job.core.basic.execution.ExecutionService;

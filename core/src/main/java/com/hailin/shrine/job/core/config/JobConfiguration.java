@@ -1,6 +1,7 @@
-package com.hailin.shrine.job.core.job.config;
+package com.hailin.shrine.job.core.config;
 
 import com.google.common.base.Strings;
+import com.hailin.shrine.job.core.basic.config.ConfigurationNode;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 import com.hailin.shrine.job.core.job.constant.ShrineConstant;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
@@ -131,7 +132,7 @@ public final class JobConfiguration implements JobRootConfiguration {
     //下游作业
     private String downStream;
 
-    private  JobTypeConfiguration typeConfig;
+    private JobTypeConfiguration typeConfig;
 
     public JobConfiguration(CoordinatorRegistryCenter regCenter,
                             String jobName) {

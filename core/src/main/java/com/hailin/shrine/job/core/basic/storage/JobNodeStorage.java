@@ -3,7 +3,7 @@ package com.hailin.shrine.job.core.basic.storage;
 import com.hailin.shrine.job.common.exception.JobException;
 import com.hailin.shrine.job.common.util.BlockUtils;
 import com.hailin.shrine.job.core.basic.server.ServerNode;
-import com.hailin.shrine.job.core.job.config.JobConfiguration;
+import com.hailin.shrine.job.core.config.JobConfiguration;
 import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.reg.exception.RegExceptionHandler;
 import com.hailin.shrine.job.core.reg.zookeeper.ZookeeperConfiguration;

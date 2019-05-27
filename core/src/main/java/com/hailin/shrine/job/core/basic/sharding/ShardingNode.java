@@ -2,6 +2,7 @@
 package com.hailin.shrine.job.core.basic.sharding;
 
 
+import com.hailin.shrine.job.core.basic.election.LeaderNode;
 import com.hailin.shrine.job.core.basic.server.ServerNode;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
 
@@ -17,7 +18,7 @@ public final class ShardingNode {
 	 */
 	public static final String ROOT = "sharding";
 
-	public static final String LEADER_SHARDING_ROOT = ElectionNode.ROOT + "/sharding";
+	public static final String LEADER_SHARDING_ROOT = LeaderNode.ROOT + "/sharding";
 
 	public static final String NECESSARY = LEADER_SHARDING_ROOT + "/necessary";
 
@@ -64,7 +65,7 @@ public final class ShardingNode {
 
 
 
-	static String getDisabledNode(final int item) {
+	public static String getDisabledNode(final int item) {
 		return String.format(DISABLED, item);
 	}
 

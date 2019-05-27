@@ -182,9 +182,9 @@ public class ShrineWorker implements Runnable {
         }
         operableTrigger.updateAfterMisfire(null);
         Date nextFireTime = operableTrigger.getNextFireTime();
-        while(nextFireTime != null && job.getConfigurationService().is){
-            nextFireTime = operableTrigger.getFireTimeAfter(nextFireTime);
-        }
+//        while(nextFireTime != null && job.getConfigurationService().is){
+//            nextFireTime = operableTrigger.getFireTimeAfter(nextFireTime);
+//        }
         return nextFireTime;
     }
 }

@@ -1,8 +1,9 @@
 package com.hailin.shrine.job.core.basic.control;
 
-import com.hailin.shrine.job.core.basic.listener.AbstractJobListener;
-import com.hailin.shrine.job.core.basic.listener.AbstractListenerManager;
+import com.hailin.shrine.job.core.listener.AbstractJobListener;
+import com.hailin.shrine.job.core.listener.AbstractListenerManager;
 import com.hailin.shrine.job.core.basic.storage.JobNodePath;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
@@ -17,8 +18,8 @@ public class ControlListenerManager extends AbstractListenerManager {
 
     private ReportService reportService;
 
-    public ControlListenerManager(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public ControlListenerManager(final String jobName , final CoordinatorRegistryCenter regCenter) {
+        super(jobName , regCenter);
         reportService = jobScheduler.getReportService();
     }
 
@@ -38,7 +39,7 @@ public class ControlListenerManager extends AbstractListenerManager {
     class ReportPathListener extends AbstractJobListener{
 
         @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String path) {
+        protected void dataChanged(CuratorFramework client, TreeCacheEvent event ,   String data ,  String path) {
             if (isShutdown){
                 return;
             }

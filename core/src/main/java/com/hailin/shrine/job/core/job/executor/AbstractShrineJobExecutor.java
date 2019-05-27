@@ -5,12 +5,14 @@ import com.hailin.shrine.job.common.event.JobStatusTraceEvent;
 import com.hailin.shrine.job.common.exception.JobExecutionEnvironmentException;
 import com.hailin.shrine.job.common.exception.JobSystemException;
 import com.hailin.shrine.job.common.util.ExceptionUtil;
+import com.hailin.shrine.job.core.basic.execution.ShardingContexts;
 import com.hailin.shrine.job.core.basic.sharding.context.AbstractJobExecutionShardingContext;
+import com.hailin.shrine.job.core.config.JobProperties;
+import com.hailin.shrine.job.core.config.JobRootConfiguration;
 import com.hailin.shrine.job.core.executor.ShardingContext;
+import com.hailin.shrine.job.core.handler.ExecutorServiceHandler;
+import com.hailin.shrine.job.core.handler.JobExceptionHandler;
 import com.hailin.shrine.job.core.job.JobFacade;
-import com.hailin.shrine.job.core.job.config.JobProperties;
-import com.hailin.shrine.job.core.job.config.JobRootConfiguration;
-import com.hailin.shrine.job.core.job.executor.handler.JobExceptionHandler;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -77,7 +79,7 @@ public abstract class AbstractShrineJobExecutor {
         } catch (final JobExecutionEnvironmentException cause) {
             jobExceptionHandler.handleException(jobName, cause);
         }
-        AbstractJobExecutionShardingContext shardingContexts = jobFacade.getShardingContexts();
+        ShardingContexts shardingContexts = jobFacade.getShardingContexts();
         // todo
         // 执行任务前的操作
 
@@ -85,7 +87,7 @@ public abstract class AbstractShrineJobExecutor {
         execute(shardingContexts , JobExecutionEvent.ExecutionSource.NORMAL_TRIGGER);
     }
 
-    private void execute(final AbstractJobExecutionShardingContext shardingContexts, final JobExecutionEvent.ExecutionSource executionSource) {
+    private void execute(final ShardingContexts shardingContexts, final JobExecutionEvent.ExecutionSource executionSource) {
         if (shardingContexts.getShardingItemParameters().isEmpty()) {
             if (shardingContexts.isAllowSendJobEvent()) {
                 jobFacade.postJobStatusTraceEvent(shardingContexts.getTaskId(), JobStatusTraceEvent.State.TASK_FINISHED, String.format("Sharding item for job '%s' is empty.", jobName));
@@ -113,7 +115,7 @@ public abstract class AbstractShrineJobExecutor {
             }
         }
     }
-    private void process(final AbstractJobExecutionShardingContext shardingContexts, final JobExecutionEvent.ExecutionSource executionSource) {
+    private void process(final ShardingContexts shardingContexts, final JobExecutionEvent.ExecutionSource executionSource) {
         Collection<Integer> items = shardingContexts.getShardingItemParameters().keySet();
         if (1 == items.size()) {
             int item = shardingContexts.getShardingItemParameters().keySet().iterator().next();
@@ -145,7 +147,7 @@ public abstract class AbstractShrineJobExecutor {
             Thread.currentThread().interrupt();
         }
     }
-    private void process(final AbstractJobExecutionShardingContext shardingContexts, final int item, final JobExecutionEvent startEvent) {
+    private void process(final ShardingContexts shardingContexts, final int item, final JobExecutionEvent startEvent) {
         if (shardingContexts.isAllowSendJobEvent()) {
             jobFacade.postJobExecutionEvent(startEvent);
         }

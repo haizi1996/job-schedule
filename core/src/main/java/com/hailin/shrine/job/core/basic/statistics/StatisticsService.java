@@ -1,6 +1,7 @@
 package com.hailin.shrine.job.core.basic.statistics;
 
 import com.hailin.shrine.job.core.basic.AbstractShrineService;
+import com.hailin.shrine.job.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.core.service.ConfigurationService;
 import com.hailin.shrine.job.core.strategy.JobScheduler;
 import org.slf4j.Logger;
@@ -30,34 +31,34 @@ public class StatisticsService extends AbstractShrineService {
 
     private boolean isDown = false;
 
-    public StatisticsService(JobScheduler jobScheduler) {
-        super(jobScheduler);
+    public StatisticsService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
+        super(jobName, coordinatorRegistryCenter);
     }
 
-    public synchronized void startProcesCountJob(){
-        int processCountIntervalSeconds = configurationService.getProcessCountIntervalSeconds();
-        if (processCountIntervalSeconds > 0){
-            if (processCountJobFuture != null){
-                processCountJobFuture.cancel(true);
-                LOGGER.info( jobName,
-                        "Reschedule ProcessCountJob of the {} job, the processCountIntervalSeconds is {}",
-                        jobConfiguration.getJobName(), processCountIntervalSeconds);
-                processCountJobFuture = processCountExecutor
-                        .scheduleAtFixedRate(new ProcessCountJob(jobScheduler), new Random().nextInt(10),
-                                processCountIntervalSeconds, TimeUnit.SECONDS);
-            }
-        }else {
-            if (processCountJobFuture != null) {
-                LOGGER.info( jobName, "shutdown the task of reporting statistics data");
-                processCountJobFuture.cancel(true);
-                processCountJobFuture = null;
-            }
-        }
-    }
+//    public synchronized void startProcesCountJob(){
+//        int processCountIntervalSeconds = configurationService.getProcessCountIntervalSeconds();
+//        if (processCountIntervalSeconds > 0){
+//            if (processCountJobFuture != null){
+//                processCountJobFuture.cancel(true);
+//                LOGGER.info( jobName,
+//                        "Reschedule ProcessCountJob of the {} job, the processCountIntervalSeconds is {}",
+//                        jobConfiguration.getJobName(), processCountIntervalSeconds);
+//                processCountJobFuture = processCountExecutor
+//                        .scheduleAtFixedRate(new ProcessCountJob(jobScheduler), new Random().nextInt(10),
+//                                processCountIntervalSeconds, TimeUnit.SECONDS);
+//            }
+//        }else {
+//            if (processCountJobFuture != null) {
+//                LOGGER.info( jobName, "shutdown the task of reporting statistics data");
+//                processCountJobFuture.cancel(true);
+//                processCountJobFuture = null;
+//            }
+//        }
+//    }
 
     @Override
     public synchronized void start() {
-        configurationService = jobScheduler.getConfigService();
+//        configurationService = jobScheduler.getConfigService();
         processCountExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
                 private AtomicInteger number = new AtomicInteger(0);
 
