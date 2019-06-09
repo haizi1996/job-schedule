@@ -74,6 +74,12 @@ public class NamespaceShardingContentService {
         }
     }
 
+    /**
+     * 获取执行器的分片信息
+     * @param executorList 执行器列表
+     * @param jobName 作业名
+     * @return key 执行器 ， value 分片集合
+     */
     public Map<String, List<Integer>> getShardingItems(List<Executor> executorList, String jobName) {
         if (executorList == null || executorList.isEmpty()) {
             return Maps.newHashMap();

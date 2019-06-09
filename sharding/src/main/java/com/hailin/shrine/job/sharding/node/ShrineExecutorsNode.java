@@ -8,7 +8,7 @@ public class ShrineExecutorsNode {
 
     public static final String EXECUTOR_NODE_NAME = "$SaturnExecutors";
 
-    public static final String SATURN_EXECUTORS_EXECUTORS_NODE_NAME = String.format("/%s/%s", EXECUTOR_NODE_NAME,
+    public static final String SHRINE_EXECUTORS_EXECUTORS_NODE_NAME = String.format("/%s/%s", EXECUTOR_NODE_NAME,
             "executors");
 
     public static final String EXECUTORS_ROOT = "/" + EXECUTOR_NODE_NAME + "/executors";
