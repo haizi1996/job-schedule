@@ -1,8 +1,11 @@
 package com.hailin.shrine.job.sharding.service;
 
+import com.google.common.collect.Lists;
 import com.hailin.shrine.job.integrate.service.ReportAlarmService;
+import com.hailin.shrine.job.sharding.entity.Executor;
+import com.hailin.shrine.job.sharding.entity.Shard;
 import com.hailin.shrine.job.sharding.node.ShrineExecutorsNode;
-import com.hailin.shrine.job.sharding.task.ExecuteAllShardingTask;
+import com.hailin.shrine.job.sharding.task.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
@@ -13,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -311,5 +316,24 @@ public class NamespaceShardingService {
             shardingCount.incrementAndGet();
             executorService.submit(new ExecuteJobServerOfflineShardingTask(this, jobName, executorName));
         }
+    }
+
+    public List<Shard> removeAllShardsOnExecutors(List<Executor> lastOnlineTrafficExecutorList, String jobName) {
+        List<Shard> removedShards = Lists.newArrayList();
+
+        for (int i = 0; i < lastOnlineTrafficExecutorList.size(); i++) {
+            Executor executor = lastOnlineTrafficExecutorList.get(i);
+            Iterator<Shard> iterator = executor.getShardList().iterator();
+            while (iterator.hasNext()) {
+                Shard shard = iterator.next();
+                if (jobName.equals(shard.getJobName())) {
+                    executor.setTotalLoadLevel(executor.getTotalLoadLevel() - shard.getLoadLevel());
+                    iterator.remove();
+                    removedShards.add(shard);
+                }
+            }
+        }
+
+        return removedShards;
     }
 }

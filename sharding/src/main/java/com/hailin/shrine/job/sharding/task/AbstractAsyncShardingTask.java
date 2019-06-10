@@ -51,7 +51,9 @@ public abstract class AbstractAsyncShardingTask implements Runnable {
         return null;
     }
 
-
+    protected List<String> notifyEnableJobsPrior(){
+        return null;
+    }
 
     @Override
     public void run() {
@@ -207,6 +209,8 @@ public abstract class AbstractAsyncShardingTask implements Runnable {
                     shardingCount.toString().getBytes(StandardCharsets.UTF_8.name()));
         }
     }
+
+
 
     private boolean shardingContentIsChanged(List<Executor> oldOnlineExecutorList,
                                              List<Executor> lastOnlineExecutorList) {
@@ -689,7 +693,7 @@ public abstract class AbstractAsyncShardingTask implements Runnable {
      * 获取作业的分片总数
      * @param jobName 作业名
      */
-    private int getShardingTotalCount(String jobName) throws Exception {
+    protected int getShardingTotalCount(String jobName) throws Exception {
         int shardingTotalCount = 0;
         String jobConfigShardingTotalCountNodePath = ShrineExecutorsNode
                 .getJobConfigShardingTotalCountNodePath(jobName);
@@ -714,7 +718,7 @@ public abstract class AbstractAsyncShardingTask implements Runnable {
      * @param jobName 作业名
      * @return
      */
-    private boolean isLocalMode(String jobName) throws Exception {
+    protected boolean isLocalMode(String jobName) throws Exception {
         String localNodePath = ShrineExecutorsNode.getJobConfigLocalModeNodePath(jobName);
         if (curatorFramework.checkExists().forPath(localNodePath) != null) {
             byte[] data = curatorFramework.getData().forPath(localNodePath);
@@ -742,7 +746,7 @@ public abstract class AbstractAsyncShardingTask implements Runnable {
      * 获取这个作业配置的优先执行节点的列表，即使配置的executor不存在，也返回
      * @param jobName 作业名
      */
-    private List<String> getPreferListConfigured(String jobName) throws Exception {
+    protected List<String> getPreferListConfigured(String jobName) throws Exception {
         List<String> preferList = Lists.newLinkedList();
         if (curatorFramework.checkExists().forPath(ShrineExecutorsNode.getJobConfigPreferListNodePath(jobName)) != null){
             byte[] preferListData = curatorFramework.getData().forPath(ShrineExecutorsNode.getJobConfigPreferListNodePath(jobName));
@@ -825,4 +829,6 @@ public abstract class AbstractAsyncShardingTask implements Runnable {
     protected boolean getExecutorNoTraffic(String executorName) throws Exception {
         return curatorFramework.checkExists().forPath(ShrineExecutorsNode.getExecutorNoTrafficNodePath(executorName)) != null;
     }
+
+
 }
