@@ -39,8 +39,6 @@ public class ScheduleExecutorService {
 
     private ClassLoader executorClassLoader;
 
-    private ScheduleExecutorService scheduleExecutorService;
-
     private ScheduleExecutorExtension scheduleExecutorExtension;
 
     private InitNewJobService initNewJobService;
@@ -48,12 +46,12 @@ public class ScheduleExecutorService {
 
     private RestartAndDumpService restartExecutorService;
 
-    private Object shrineApplication;
+    private Object scheduleApplication;
 
-    public ScheduleExecutorService(String executorName, CoordinatorRegistryCenter coordinatorRegistryCenter, ScheduleExecutorService scheduleExecutorService) {
+    public ScheduleExecutorService( CoordinatorRegistryCenter coordinatorRegistryCenter , String executorName, ScheduleExecutorExtension scheduleExecutorExtension) {
         this.executorName = executorName;
         this.coordinatorRegistryCenter = coordinatorRegistryCenter;
-        this.scheduleExecutorService = scheduleExecutorService;
+        this.scheduleExecutorExtension = scheduleExecutorExtension;
 
         if (coordinatorRegistryCenter != null){
             coordinatorRegistryCenter.setExecutorName(executorName);
@@ -289,5 +287,13 @@ public class ScheduleExecutorService {
 
     public void setScheduleExecutorService(ScheduleExecutorService scheduleExecutorService) {
         this.scheduleExecutorService = scheduleExecutorService;
+    }
+
+    public Object getScheduleApplication() {
+        return scheduleApplication;
+    }
+
+    public void setScheduleApplication(Object scheduleApplication) {
+        this.scheduleApplication = scheduleApplication;
     }
 }
