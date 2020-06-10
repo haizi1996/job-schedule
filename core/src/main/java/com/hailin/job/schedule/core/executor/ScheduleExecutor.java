@@ -4,7 +4,6 @@ import com.google.common.base.Strings;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.reflect.TypeToken;
-import com.hailin.SCHEDULE.job.common.util.SystemEnvProperties;
 import com.hailin.job.schedule.core.reg.zookeeper.ZookeeperConfiguration;
 import com.hailin.job.schedule.core.utils.StartCheckUtil;
 import com.hailin.shrine.job.common.exception.ScheduleExecutorExceptionCode;
@@ -17,6 +16,7 @@ import com.hailin.job.schedule.core.basic.threads.ScheduleThreadFactory;
 import com.hailin.job.schedule.core.reg.zookeeper.ZookeeperRegistryCenter;
 import com.hailin.shrine.job.common.util.ScheduleUtils;
 import com.hailin.job.schedule.core.utils.ScriptPidUtils;
+import com.hailin.shrine.job.common.util.SystemEnvProperties;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
@@ -146,6 +146,11 @@ public class ScheduleExecutor {
                 logger.info( "start to check all exist jobs");
                 checkAndKillExistedShellJobs();
 
+                // 添加新增作业时的回调方法，启动已经存在的作业
+                logger.info("start to register newJobCallback, and async start existing jobs");
+                scheduleExecutorService.registerJobsWatcher();
+                logger.info( "The executor {} start successfully which used {} ms",
+                        executorName, System.currentTimeMillis() - startTime);
             }catch (Exception e){
                 StartCheckUtil.setError(StartCheckUtil.StartCheckItem.ZK);
                 throw e;
@@ -313,11 +318,11 @@ public class ScheduleExecutor {
         String exceptionMsg = sb.toString();
 
         if (statusCode != null) {
-            if (statusCode.intValue() == HttpStatus.SC_NOT_FOUND) {
+            if (statusCode == HttpStatus.SC_NOT_FOUND) {
                 throw new ShrineExecutorException(ScheduleExecutorExceptionCode.NAMESPACE_NOT_EXIST, exceptionMsg);
             }
 
-            if (statusCode.intValue() == HttpStatus.SC_BAD_REQUEST) {
+            if (statusCode == HttpStatus.SC_BAD_REQUEST) {
                 throw new ShrineExecutorException(ScheduleExecutorExceptionCode.BAD_REQUEST, exceptionMsg);
             }
         }

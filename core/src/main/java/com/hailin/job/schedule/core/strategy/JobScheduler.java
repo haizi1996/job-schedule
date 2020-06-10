@@ -1,10 +1,12 @@
 package com.hailin.job.schedule.core.strategy;
 
 import com.google.common.base.Optional;
+import com.hailin.job.schedule.core.basic.JobTypeManager;
 import com.hailin.job.schedule.core.job.JobFacade;
 import com.hailin.job.schedule.core.job.type.script.ScriptJob;
 import com.hailin.job.schedule.core.listener.ListenerManager;
 import com.hailin.shrine.job.common.exception.JobConfigurationException;
+import com.hailin.shrine.job.common.exception.JobException;
 import com.hailin.shrine.job.common.exception.JobSystemException;
 import com.hailin.job.schedule.core.basic.AbstractElasticJob;
 import com.hailin.job.schedule.core.basic.JobRegistry;
@@ -117,25 +119,33 @@ public class JobScheduler {
     private LimitMaxJobService limitMaxJobService ;
 
     private SchedulerFacade schedulerFacade;
-    private final JobFacade jobFacade;
+//    private final JobFacade jobFacade;
 
     public JobScheduler(JobConfiguration jobConfig, CoordinatorRegistryCenter regCenter) {
         this.jobConfiguration = jobConfig;
+        this.jobName = jobConfig.getJobName();
+        this.executorName = regCenter.getExecutorName();
+        this.currentConf = jobConfig;
         this.regCenter = regCenter;
         this.jobNodeStorage = new JobNodeStorage(regCenter , jobConfig);
+        initExecutorService();
+        JobRegistry.addJobScheduler(executorName , jobName , this);
+
         zkCacheManager = new ZkCacheManager((CuratorFramework) regCenter.getRawClient(), jobName,
                 executorName);
+
         configService= new ConfigurationService(currentConf.getJobName() ,regCenter);
-        schedulerFacade = new SchedulerFacade( currentConf.getJobName() , regCenter);
-        jobFacade = new ShrineJobFacade( currentConf.getJobName() , regCenter);
+
+//        schedulerFacade = new SchedulerFacade( currentConf.getJobName() , regCenter);
+//        jobFacade = new ShrineJobFacade( currentConf.getJobName() , regCenter);
 
     }
 
 
     public void init() {
 //        try {
-//            startAll();
-//            createJob();
+            startAll();
+            createJob();
 //            serverService.persistServerOnline(job);
 //            configService.notifyJobEnabledOrNot();
 //        }catch (Throwable throwable){
@@ -143,34 +153,30 @@ public class JobScheduler {
 //            throw throwable;
 //        }
         JobConfiguration jobConfigFromRegCenter = schedulerFacade.updateJobConfiguration(jobConfiguration);
-        JobRegistry.getInstance().setCurrentShardingTotalCount(jobConfigFromRegCenter.getJobName() , jobConfigFromRegCenter.getShardingTotalCount());
-        JobScheduleController jobScheduleController = new JobScheduleController(createScheduler(), createJobDetail(currentConf.getTypeConfig().getJobClass()), currentConf.getJobName());
         schedulerFacade.registerStartUpInfo(jobConfigFromRegCenter.isEnabled());
-        JobRegistry.getInstance().registerJob(jobName ,jobScheduleController,regCenter );
-//        jobScheduleController.scheduleJob(jobConfigFromRegCenter.getTypeConfig().getCoreConfig().getCron());
     }
 
-//    private void createJob() {
-//        try{
-//            job = JobTypeManager.get(currentConf.getJobType()).getHandlerClass().newInstance();
-//        }catch (Exception e){
-//            LOGGER.error(jobName , "unexpected error" , e);
-//            throw new JobException(e);
-//        }
-//        job.setJobScheduler(this);
-//        job.setConfigurationService(configService);
-//        job.setShardingService(shardingService);
-//        job.setExecutionContextService(executionContextService);
-//        job.setExecutionService(executionService);
-//        job.setFailoverService(failoverService);
-//        job.setServerService(serverService);
-//        job.setExecutorName(executorName);
-//        job.setReportService(reportService);
-//        job.setJobName(jobName);
-//        job.setNamespace(regCenter.getNamespace());
-//        job.setShrineExecutorService(shrineExecutorService);
-//        job.init();
-//    }
+    private void createJob() {
+        try{
+            job = JobTypeManager.get(currentConf.getJobType()).getHandlerClass().newInstance();
+        }catch (Exception e){
+            LOGGER.error(jobName , "unexpected error" , e);
+            throw new JobException(e);
+        }
+        job.setJobScheduler(this);
+        job.setConfigurationService(configService);
+        job.setShardingService(shardingService);
+        job.setExecutionContextService(executionContextService);
+        job.setExecutionService(executionService);
+        job.setFailoverService(failoverService);
+        job.setServerService(serverService);
+        job.setExecutorName(executorName);
+        job.setReportService(reportService);
+        job.setJobName(jobName);
+        job.setNamespace(regCenter.getNamespace());
+        job.setScheduleExecutorService(scheduleExecutorService);
+        job.init();
+    }
 
     private void startAll() {
         configService.start();
@@ -208,6 +214,7 @@ public class JobScheduler {
     }
 
 
+
     /**
      * 获取下次作业触发时间.可能被暂停时间段所影响。
      *
@@ -223,21 +230,7 @@ public class JobScheduler {
         }
     }
 
-    private JobDetail createJobDetail(final String jobClass) {
-        JobDetail result = JobBuilder.newJob(ShrineJob.class).withIdentity(jobConfiguration.getJobName()).build();
-        result.getJobDataMap().put(JOB_FACADE_DATA_MAP_KEY, jobFacade);
-        Optional<ShrineJob> elasticJobInstance = createElasticJobInstance();
-        if (elasticJobInstance.isPresent()) {
-            result.getJobDataMap().put(SHRINE_JOB_DATA_MAP_KEY, elasticJobInstance.get());
-        } else if (!jobClass.equals(ScriptJob.class.getCanonicalName())) {
-            try {
-                result.getJobDataMap().put(SHRINE_JOB_DATA_MAP_KEY, Class.forName(jobClass).newInstance());
-            } catch (final ReflectiveOperationException ex) {
-                throw new JobConfigurationException("Elastic-Job: Job class '%s' can not initialize.", jobClass);
-            }
-        }
-        return result;
-    }
+
 
     protected Optional<ShrineJob> createElasticJobInstance() {
        return Optional.absent();
@@ -367,6 +360,14 @@ public class JobScheduler {
 
     public void setLeaderElectionService(LeaderElectionService leaderElectionService) {
         this.leaderElectionService = leaderElectionService;
+    }
+
+    public ExecutorService getExecutorService() {
+        return executorService;
+    }
+
+    public void setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
     }
 
     public AbstractElasticJob getJob() {

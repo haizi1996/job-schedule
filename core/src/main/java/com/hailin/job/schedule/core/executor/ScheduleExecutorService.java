@@ -48,6 +48,7 @@ public class ScheduleExecutorService {
 
     private Object scheduleApplication;
 
+
     public ScheduleExecutorService( CoordinatorRegistryCenter coordinatorRegistryCenter , String executorName, ScheduleExecutorExtension scheduleExecutorExtension) {
         this.executorName = executorName;
         this.coordinatorRegistryCenter = coordinatorRegistryCenter;
@@ -129,13 +130,13 @@ public class ScheduleExecutorService {
 
         // 持久化clean
         coordinatorRegistryCenter
-                .persist(executorCleanNode, String.valueOf(SystemEnvProperties.SHRINE_EXECUTOR_CLEAN));
+                .persist(executorCleanNode, String.valueOf(SystemEnvProperties.SCHEDULE_EXECUTOR_CLEAN));
 
         // 持久task
-        if (StringUtils.isNotBlank(SystemEnvProperties.SHRINE_CONTAINER_DEPLOYMENT_ID)) {
+        if (StringUtils.isNotBlank(SystemEnvProperties.SCHEDULE_CONTAINER_DEPLOYMENT_ID)) {
             LOGGER.info(LogEvents.ExecutorEvent.INIT, "persist znode '/task': {}",
-                    SystemEnvProperties.SHRINE_CONTAINER_DEPLOYMENT_ID);
-            coordinatorRegistryCenter.persist(executorTaskNode, SystemEnvProperties.SHRINE_CONTAINER_DEPLOYMENT_ID);
+                    SystemEnvProperties.SCHEDULE_CONTAINER_DEPLOYMENT_ID);
+            coordinatorRegistryCenter.persist(executorTaskNode, SystemEnvProperties.SCHEDULE_CONTAINER_DEPLOYMENT_ID);
         }
 
         // 获取配置并添加watcher
@@ -281,13 +282,6 @@ public class ScheduleExecutorService {
         this.executorClassLoader = executorClassLoader;
     }
 
-    public ScheduleExecutorService getScheduleExecutorService() {
-        return scheduleExecutorService;
-    }
-
-    public void setScheduleExecutorService(ScheduleExecutorService scheduleExecutorService) {
-        this.scheduleExecutorService = scheduleExecutorService;
-    }
 
     public Object getScheduleApplication() {
         return scheduleApplication;

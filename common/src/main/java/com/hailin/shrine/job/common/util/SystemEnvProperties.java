@@ -1,4 +1,4 @@
-package com.hailin.SCHEDULE.job.common.util;
+package com.hailin.shrine.job.common.util;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -192,7 +192,7 @@ public class SystemEnvProperties {
 					SCHEDULE_CHECK_NOHUPOUT_SIZE_INTERVAL_IN_SEC = interval_in_sec;
 				}
 			} catch (Throwable t) {
-				LOGGER.error( LogEvents.ExecutorEvent.COMMON, t.getMessage(), t);
+				LOGGER.error(  t.getMessage(), t);
 			}
 		}
 
@@ -205,7 +205,7 @@ public class SystemEnvProperties {
 					SCHEDULE_NOHUPOUT_SIZE_LIMIT_IN_BYTES = sizeLimit;
 				}
 			} catch (Throwable t) {
-				LOGGER.error( LogEvents.ExecutorEvent.COMMON, t.getMessage(), t);
+				LOGGER.error(  t.getMessage(), t);
 			}
 		}
 
@@ -221,12 +221,12 @@ public class SystemEnvProperties {
 					}
 				}
 			} catch (Throwable t) {
-				LOGGER.error( LogEvents.ExecutorEvent.COMMON, t.getMessage(), t);
+				LOGGER.error(  t.getMessage(), t);
 			}
 		}
 		SCHEDULE_INIT_JOB_BY_GROUPS = tempSet;
 		if (!SCHEDULE_INIT_JOB_BY_GROUPS.isEmpty()) {
-			LOGGER.info( LogEvents.ExecutorEvent.COMMON, "the {} is set to {}",
+			LOGGER.info(  "the {} is set to {}",
 					NAME_SCHEDULE_INIT_JOB_BY_GROUPS, SCHEDULE_INIT_JOB_BY_GROUPS);
 		}
 

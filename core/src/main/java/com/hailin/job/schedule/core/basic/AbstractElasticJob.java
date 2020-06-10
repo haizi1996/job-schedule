@@ -7,19 +7,29 @@ import com.hailin.job.schedule.core.basic.failover.FailoverService;
 import com.hailin.job.schedule.core.basic.server.ServerService;
 import com.hailin.job.schedule.core.basic.sharding.ShardingService;
 import com.hailin.job.schedule.core.basic.sharding.context.JobExecutionMultipleShardingContext;
+import com.hailin.job.schedule.core.config.JobProperties;
 import com.hailin.job.schedule.core.executor.ScheduleExecutorService;
+import com.hailin.job.schedule.core.handler.ExecutorServiceHandler;
+import com.hailin.job.schedule.core.handler.ExecutorServiceHandlerRegistry;
+import com.hailin.job.schedule.core.job.trigger.Trigger;
 import com.hailin.job.schedule.core.service.ConfigurationService;
 import com.hailin.job.schedule.core.strategy.JobScheduler;
 import com.hailin.job.schedule.core.job.trigger.ShrineScheduler;
 import com.hailin.job.schedule.core.job.trigger.Triggered;
+import com.hailin.shrine.job.common.exception.JobException;
+import com.hailin.shrine.job.common.exception.JobSystemException;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutorService;
 
 
 /**
  * 弹性化分布式作业的基类
  * @author zhanghailin
  */
+@Data
 public abstract class AbstractElasticJob implements Stoppable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractElasticJob.class);
@@ -61,6 +71,26 @@ public abstract class AbstractElasticJob implements Stoppable {
 
     protected ReportService reportService;
 
+    protected ExecutorService executorService;
+
+
+
+    public void init() {
+        Class<? extends Trigger> triggerClass = configurationService.getJobType().getTriggerClass();
+
+        Trigger trigger = null;
+        try{
+            trigger = triggerClass.newInstance();
+            trigger.init(this);
+        }catch (Exception e){
+            LOGGER.error( "{} Trigger init failed " , jobName , e);
+            throw new JobException(e);
+        }
+        executorService = ExecutorServiceHandlerRegistry.getExecutorServiceHandler(jobName, (ExecutorServiceHandler) getHandler(JobProperties.JobPropertiesEnum.EXECUTOR_SERVICE_HANDLER));
+
+        scheduler = new ShrineScheduler(this , trigger);
+        scheduler.start();
+    }
 
     /**
      * 重置作业 调用一次周期的变量
@@ -72,10 +102,35 @@ public abstract class AbstractElasticJob implements Stoppable {
         running = true;
     }
 
+    private Object getHandler(final JobProperties.JobPropertiesEnum jobPropertiesEnum) {
+        String handlerClassName = jobRootConfig.getTypeConfig().getCoreConfig().getJobProperties().get(jobPropertiesEnum);
+        try {
+            Class<?> handlerClass = Class.forName(handlerClassName);
+            if (jobPropertiesEnum.getClassType().isAssignableFrom(handlerClass)) {
+                return handlerClass.newInstance();
+            }
+            return getDefaultHandler(jobPropertiesEnum, handlerClassName);
+        } catch (final ReflectiveOperationException ex) {
+            return getDefaultHandler(jobPropertiesEnum, handlerClassName);
+        }
+    }
+
+    private Object getDefaultHandler(final JobProperties.JobPropertiesEnum jobPropertiesEnum, final String handlerClassName) {
+        LOGGER.warn("Cannot instantiation class '{}', use default '{}' class.", handlerClassName, jobPropertiesEnum.getKey());
+        try {
+            return Class.forName(jobPropertiesEnum.getDefaultValue()).newInstance();
+        } catch (final ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            throw new JobSystemException(e);
+        }
+    }
 
     @Override
     public void shutdown() {
 
+    }
+
+    public ExecutorService getExecutorService() {
+        return jobScheduler.getExecutorService();
     }
 
     public ConfigurationService getConfigurationService() {
@@ -104,9 +159,8 @@ public abstract class AbstractElasticJob implements Stoppable {
 
     /**
      *  进行任务执行
-     * @param currentTriggered 当前执行数据
      */
-    public final void execute(Triggered currentTriggered) {
+    public final void execute() {
         LOGGER.debug(jobName, "Saturn start to execute job [{}]", jobName);
         // 对每一个jobScheduler，作业对象只有一份，多次使用，所以每次开始执行前先要reset
         reset();
@@ -115,6 +169,22 @@ public abstract class AbstractElasticJob implements Stoppable {
             return;
         }
         JobExecutionMultipleShardingContext shardingContext = null;
+        try {
+            if (failoverService.getLocalHostFailoverItems().isEmpty()){
+                shardingService.shardingIfNecessary();
+            }
+            if (!configurationService.isJobEnabled()){
+                LOGGER.debug( "{} is disabled, cannot be continued, do nothing about business.",
+                        jobName);
+                return;
+            }
+
+
+        }catch (Exception e){
+            LOGGER.warn(e.getMessage() + " " +jobName , e);
+        }finally {
+            running = false;
+        }
 
     }
     protected boolean mayRunDownStream(final JobExecutionMultipleShardingContext shardingContext) {

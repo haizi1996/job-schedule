@@ -1,5 +1,6 @@
 package com.hailin.job.schedule.core.basic.failover;
 
+import com.hailin.job.schedule.core.basic.execution.ExecutionNode;
 import com.hailin.job.schedule.core.basic.sharding.ShardingService;
 import com.hailin.job.schedule.core.schedule.JobScheduleController;
 import com.hailin.job.schedule.core.basic.AbstractShrineService;
@@ -170,7 +171,7 @@ public class FailoverService extends AbstractShrineService {
      * @return 运行在本作业服务器的失效转移序列号
      */
     public List<Integer> getLocalHostFailoverItems() {
-        List<String> items = getJobNodeStorage().getJobNodeChildrenKeys(LeaderNode.ROOT);
+        List<String> items = getJobNodeStorage().getJobNodeChildrenKeys(ExecutionNode.ROOT);
         List<Integer> result = new ArrayList<>(items.size());
         for (String each : items) {
             int item = Integer.parseInt(each);

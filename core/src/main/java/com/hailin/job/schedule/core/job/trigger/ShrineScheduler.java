@@ -20,7 +20,7 @@ public class ShrineScheduler {
     private Trigger trigger;
     private final ExecutorService executor ;
 
-    private ShrineWorker shrineWorker;
+    private ScheduleWorker scheduleWorker;
 
     public ShrineScheduler(AbstractElasticJob job , final Trigger trigger) {
         this.job = job;
@@ -42,15 +42,15 @@ public class ShrineScheduler {
     }
 
     public void shutdown() {
-        shrineWorker.halt();
+        scheduleWorker.halt();
         executor.shutdown();
     }
     public void start(){
-        shrineWorker = new ShrineWorker(job , trigger.createTriggered(false , null) , trigger.createQuartzTrigger());
+        scheduleWorker = new ScheduleWorker(job , trigger.createTriggered(false , null) , trigger.createQuartzTrigger());
         if(trigger.isInitialTriggered()){
             trigger(null);
         }
-        executor.submit(shrineWorker);
+        executor.submit(scheduleWorker);
     }
 
     public void awaitTermination(long timeout) {
@@ -65,17 +65,17 @@ public class ShrineScheduler {
     }
 
     public void reInitializeTrigger() {
-        shrineWorker.reInitTrigger(trigger.createQuartzTrigger());
+        scheduleWorker.reInitTrigger(trigger.createQuartzTrigger());
     }
 
     public Date getNextFireTimePausePeriodEffected() {
-        return shrineWorker.getNextFireTimePausePeriodEffected();
+        return scheduleWorker.getNextFireTimePausePeriodEffected();
     }
     public void trigger(String triggeredDataStr) {
-        shrineWorker.trigger(trigger.createTriggered(true , triggeredDataStr));
+        scheduleWorker.trigger(trigger.createTriggered(true , triggeredDataStr));
     }
 
     public boolean isShutdown(){
-        return shrineWorker.isShutDown();
+        return scheduleWorker.isShutDown();
     }
 }
