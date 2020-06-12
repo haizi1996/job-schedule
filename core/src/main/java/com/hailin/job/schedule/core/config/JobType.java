@@ -12,4 +12,8 @@ public interface JobType {
     Class<? extends AbstractElasticJob> getHandlerClass() ;
 
     Class<? extends Trigger> getTriggerClass();
+
+    boolean isCron();
+
+    boolean isPassive();
 }

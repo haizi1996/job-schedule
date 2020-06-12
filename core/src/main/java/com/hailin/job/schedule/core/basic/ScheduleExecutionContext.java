@@ -2,16 +2,18 @@ package com.hailin.job.schedule.core.basic;
 
 import com.hailin.job.schedule.core.basic.sharding.context.JobExecutionMultipleShardingContext;
 import com.hailin.job.schedule.core.config.JobConfiguration;
-import com.hailin.shrine.job.ShrineJobReturn;
+import com.hailin.shrine.job.ScheduleJobReturn;
+import lombok.Data;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Shrine的作业运行上下文
+ * Schedule的作业运行上下文
  * @author zhanghailin
  */
-public class ShrineExecutionContext extends JobExecutionMultipleShardingContext {
+@Data
+public class ScheduleExecutionContext extends JobExecutionMultipleShardingContext {
 
 
     private static int initCollectionSize = 64;
@@ -29,7 +31,7 @@ public class ShrineExecutionContext extends JobExecutionMultipleShardingContext 
     /**
      * 运行在本作业项的分片序列号和运行结果.
      */
-    private Map<Integer, ShrineJobReturn> shardingItemResults = new HashMap<>(initCollectionSize);
+    private Map<Integer, ScheduleJobReturn> shardingItemResults = new HashMap<>(initCollectionSize);
 
     /**
      * 作业运行日志, key为分片项
@@ -59,7 +61,7 @@ public class ShrineExecutionContext extends JobExecutionMultipleShardingContext 
     }
 
     public static void setInitCollectionSize(int initCollectionSize) {
-        ShrineExecutionContext.initCollectionSize = initCollectionSize;
+        ScheduleExecutionContext.initCollectionSize = initCollectionSize;
     }
 
     public boolean isSaturnJob() {
@@ -78,11 +80,11 @@ public class ShrineExecutionContext extends JobExecutionMultipleShardingContext 
         this.timetoutSeconds = timetoutSeconds;
     }
 
-    public Map<Integer, ShrineJobReturn> getShardingItemResults() {
+    public Map<Integer, ScheduleJobReturn> getShardingItemResults() {
         return shardingItemResults;
     }
 
-    public void setShardingItemResults(Map<Integer, ShrineJobReturn> shardingItemResults) {
+    public void setShardingItemResults(Map<Integer, ScheduleJobReturn> shardingItemResults) {
         this.shardingItemResults = shardingItemResults;
     }
 

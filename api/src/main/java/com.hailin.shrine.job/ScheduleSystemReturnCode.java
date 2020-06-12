@@ -1,6 +1,6 @@
 package com.hailin.shrine.job;
 
-public final class ShrineSystemReturnCode {
+public final class ScheduleSystemReturnCode {
 
 	public static final int SUCCESS = 0;
 

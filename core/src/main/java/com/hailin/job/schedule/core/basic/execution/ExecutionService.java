@@ -3,11 +3,11 @@ package com.hailin.job.schedule.core.basic.execution;
 import com.google.common.collect.Lists;
 import com.hailin.job.schedule.core.basic.sharding.context.JobExecutionMultipleShardingContext;
 import com.hailin.job.schedule.core.service.ConfigurationService;
-import com.hailin.shrine.job.ShrineJobReturn;
-import com.hailin.shrine.job.ShrineSystemErrorGroup;
+import com.hailin.shrine.job.ScheduleJobReturn;
+import com.hailin.shrine.job.ScheduleSystemErrorGroup;
 import com.hailin.job.schedule.core.basic.AbstractShrineService;
 import com.hailin.job.schedule.core.basic.JobRegistry;
-import com.hailin.job.schedule.core.basic.ShrineExecutionContext;
+import com.hailin.job.schedule.core.basic.ScheduleExecutionContext;
 import com.hailin.job.schedule.core.basic.control.ReportService;
 import com.hailin.job.schedule.core.basic.failover.FailoverNode;
 import com.hailin.job.schedule.core.basic.sharding.ShardingNode;
@@ -73,15 +73,33 @@ public class ExecutionService extends AbstractShrineService {
      * 注册作业启动信息
      *
      */
-    public void registerJobBegin(final ShardingContexts shardingContexts){
-        JobRegistry.getInstance().setJobRunning(jobName, true);
-        if (!configurationService.load(true).isMonitorExecution()) {
-            return;
-        }
-        for (int each : shardingContexts.getShardingItemParameters().keySet()) {
-            jobNodeStorage.fillEphemeralJobNode(ShardingNode.getRunningNode(each), "");
+    public void registerJobBegin(final JobExecutionMultipleShardingContext shardingContexts){
+        List<Integer> shardingItems = shardingContexts.getShardingItems();
+        if (!shardingItems.isEmpty()) {
+            reportService.clearInfoMap();
+            Date nextFireTimePausePeriodEffected = jobScheduler.getNextFireTimePausePeriodEffected();
+            Long nextFireTime =
+                    nextFireTimePausePeriodEffected == null ? null : nextFireTimePausePeriodEffected.getTime();
+            for (int item : shardingItems) {
+                registerJobBeginByItem(item, nextFireTime);
+            }
         }
     }
+
+    private void registerJobBeginByItem(int item, Long nextFireTime) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("registerJobBeginByItem: " + item);
+        }
+        boolean isEnabledReport = configurationService.isEnabledReport();
+        if (isEnabledReport){
+            getJobNodeStorage().removeJobNode(ExecutionNode.getCompletedNode(item));
+            getJobNodeStorage().fillEphemeralJobNode(ExecutionNode.getRunningNode(item),executorName);
+            // 清除完成状态 timeout信息
+            cleanShrineNode(item);
+        }
+        reportService.initInfoOnbegin(item , nextFireTime);
+    }
+
     /**
      * 注册作业完成信息.
      *
@@ -108,20 +126,20 @@ public class ExecutionService extends AbstractShrineService {
 
     private void updateErrorJobReturnIfPossible(JobExecutionMultipleShardingContext jobExecutionShardingContext,
                                                 int item) {
-        if (jobExecutionShardingContext instanceof ShrineExecutionContext) {
+        if (jobExecutionShardingContext instanceof ScheduleExecutionContext) {
             // 为了展现分片处理失败的状态
-            ShrineExecutionContext shrineExecutionContext = (ShrineExecutionContext) jobExecutionShardingContext;
-            if (!shrineExecutionContext.isSaturnJob()) {
+            ScheduleExecutionContext scheduleExecutionContext = (ScheduleExecutionContext) jobExecutionShardingContext;
+            if (!scheduleExecutionContext.isSaturnJob()) {
                 return;
             }
 
-            ShrineJobReturn jobRet = shrineExecutionContext.getShardingItemResults().get(item);
+            ScheduleJobReturn jobRet = scheduleExecutionContext.getShardingItemResults().get(item);
             try {
                 if (jobRet != null) {
                     int errorGroup = jobRet.getErrorGroup();
-                    if (errorGroup == ShrineSystemErrorGroup.TIMEOUT) {
+                    if (errorGroup == ScheduleSystemErrorGroup.TIMEOUT) {
                         getJobNodeStorage().createJobNodeIfNeeded(ExecutionNode.getTimeoutNode(item));
-                    } else if (errorGroup != ShrineSystemErrorGroup.SUCCESS) {
+                    } else if (errorGroup != ScheduleSystemErrorGroup.SUCCESS) {
                         getJobNodeStorage().createJobNodeIfNeeded(ExecutionNode.getFailedNode(item));
                     }
                 } else {
@@ -276,5 +294,25 @@ public class ExecutionService extends AbstractShrineService {
             }
         }
         return result;
+    }
+
+    /**
+     * 注册作业分片完成
+     * @param shardingContext
+     * @param item
+     * @param nextFireTimePausePeriodEffected
+     */
+    public void registerJobCompletedByItem(JobExecutionMultipleShardingContext shardingContext, int item, Date nextFireTimePausePeriodEffected) {
+        registerJobCompletedControlInfoByItem(shardingContext, item);
+        registerJobCompletedReportInfoByItem(shardingContext, item, nextFireTimePausePeriodEffected);
+
+    }
+
+    private void registerJobCompletedControlInfoByItem(JobExecutionMultipleShardingContext shardingContext, int item) {
+        boolean isEnableReport = configurationService.isEnabledReport();
+        if (!isEnableReport){
+            return;
+        }
+
     }
 }

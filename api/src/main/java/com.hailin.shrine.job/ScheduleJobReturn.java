@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 作业执行的返回，没一个分片对应一个ShrineReturn对象
  * @author zhanghailin
  */
-public class ShrineJobReturn implements Serializable {
+public class ScheduleJobReturn implements Serializable {
 
     public static final String MSG_CONSUME_STATUS_PROP_KEY = "consumeStatus";
 
@@ -22,7 +22,7 @@ public class ShrineJobReturn implements Serializable {
     /**
      * Job执行返回值, 默认0。
      */
-    private int returnCode = ShrineSystemReturnCode.SUCCESS;
+    private int returnCode = ScheduleSystemReturnCode.SUCCESS;
 
     /**
      * Job执行返回字符串信息
@@ -32,7 +32,7 @@ public class ShrineJobReturn implements Serializable {
     /**
      * 异常组，默认200
      */
-    private int errorGroup = ShrineSystemReturnCode.SUCCESS;
+    private int errorGroup = ScheduleSystemReturnCode.SUCCESS;
 
     /**
      * 返回的属性，消息服务的作业会将该属性设置到发送的Channel中
@@ -42,7 +42,7 @@ public class ShrineJobReturn implements Serializable {
     /**
      * returnCode默认0（成功），errorGroup默认200（成功）。
      */
-    public ShrineJobReturn() {
+    public ScheduleJobReturn() {
     }
 
     /**
@@ -50,11 +50,11 @@ public class ShrineJobReturn implements Serializable {
      *
      * @param returnMsg 作业执行返回字符串信息
      */
-    public ShrineJobReturn(String returnMsg) {
+    public ScheduleJobReturn(String returnMsg) {
         this.returnMsg = returnMsg;
     }
 
-    public ShrineJobReturn(int returnCode, String returnMsg, int errorGroup) {
+    public ScheduleJobReturn(int returnCode, String returnMsg, int errorGroup) {
         this.returnCode = returnCode;
         this.returnMsg = returnMsg;
         this.errorGroup = errorGroup;
@@ -70,7 +70,7 @@ public class ShrineJobReturn implements Serializable {
             field.setAccessible(true);
             res = field.get(source);
             if (res != null) {
-                this.returnCode = (int) res;
+                this.returnCode = (Integer) res;
             }
 
             field = clazz.getDeclaredField("returnMsg");
@@ -84,7 +84,7 @@ public class ShrineJobReturn implements Serializable {
             field.setAccessible(true);
             res = field.get(source);
             if (res != null) {
-                this.errorGroup = (int) res;
+                this.errorGroup = (Integer) res;
             }
 
             field = clazz.getDeclaredField("prop");
@@ -133,17 +133,17 @@ public class ShrineJobReturn implements Serializable {
 
     public void reconsumeLater() {
         if (prop == null) {
-            prop = new ConcurrentHashMap<>();
+            prop = new ConcurrentHashMap<String, String>();
         }
-        prop.put(ShrineJobReturn.MSG_CONSUME_STATUS_PROP_KEY, ShineConsumeStatus.RECONSUME_LATER.name());
+        prop.put(ScheduleJobReturn.MSG_CONSUME_STATUS_PROP_KEY, ScheduleConsumeStatus.RECONSUME_LATER.name());
     }
 
     public void reconsumeLater(int delayLevel) {
         if (prop == null) {
-            prop = new ConcurrentHashMap<>();
+            prop = new ConcurrentHashMap<String, String>();
         }
-        prop.put(ShrineJobReturn.MSG_CONSUME_STATUS_PROP_KEY, ShineConsumeStatus.RECONSUME_LATER.name());
-        prop.put(ShrineJobReturn.DELAY_LEVEL_WHEN_RECONSUME_PROP_KEY, String.valueOf(delayLevel));
+        prop.put(ScheduleJobReturn.MSG_CONSUME_STATUS_PROP_KEY, ScheduleConsumeStatus.RECONSUME_LATER.name());
+        prop.put(ScheduleJobReturn.DELAY_LEVEL_WHEN_RECONSUME_PROP_KEY, String.valueOf(delayLevel));
     }
 
     @Override

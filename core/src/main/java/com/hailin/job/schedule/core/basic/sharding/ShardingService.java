@@ -1,5 +1,6 @@
 package com.hailin.job.schedule.core.basic.sharding;
 
+import com.google.common.collect.Lists;
 import com.hailin.job.schedule.core.service.ConfigurationService;
 import com.hailin.job.schedule.core.strategy.JobInstance;
 import com.hailin.shrine.job.common.exception.JobShuttingDownException;
@@ -18,6 +19,8 @@ import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.sharding.service.NamespaceShardingContentService;
 import lombok.RequiredArgsConstructor;
 import org.apache.curator.framework.api.CuratorWatcher;
+import org.apache.curator.framework.api.transaction.CuratorMultiTransaction;
+import org.apache.curator.framework.api.transaction.CuratorOp;
 import org.apache.curator.framework.api.transaction.CuratorTransactionFinal;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -168,17 +171,18 @@ public class ShardingService extends AbstractShrineService {
                         .getShardingContent(jobName, getDataStat.getData());
                 try {
                     // 所有jobserver的（检查+创建），加上设置sharding necessary内容为0，都是一个事务
-                    CuratorTransactionFinal curatorTransactionFinal = getJobNodeStorage().getClient().inTransaction()
-                            .check().forPath("/").and();
+                    CuratorMultiTransaction curatorMultiTransaction = getJobNodeStorage().getClient().transaction();
+                    List<CuratorOp> curatorOps = Lists.newArrayList();
+                    curatorOps.add(getJobNodeStorage().getClient().transactionOp().check().forPath("/"));
                     for (Map.Entry<String, List<Integer>> entry : shardingItems.entrySet()) {
-                        curatorTransactionFinal.create().forPath(
+                        curatorOps.add(getJobNodeStorage().getClient().transactionOp().create().forPath(
                                 JobNodePath.getNodeFullPath(jobName, ShardingNode.getShardingNode(entry.getKey())),
-                                ItemUtils.toItemsString(entry.getValue()).getBytes(StandardCharsets.UTF_8)).and();
+                                ItemUtils.toItemsString(entry.getValue()).getBytes(StandardCharsets.UTF_8)));
                     }
-                    curatorTransactionFinal.setData().withVersion(version)
+                    curatorOps.add(getJobNodeStorage().getClient().transactionOp().setData().withVersion(version)
                             .forPath(JobNodePath.getNodeFullPath(jobName, ShardingNode.NECESSARY),
-                                    SHARDING_UN_NECESSARY.getBytes(StandardCharsets.UTF_8)).and();
-                    curatorTransactionFinal.commit();
+                                    SHARDING_UN_NECESSARY.getBytes(StandardCharsets.UTF_8)));
+                    curatorMultiTransaction.forOperations(curatorOps);
                     break;
                 } catch (KeeperException.BadVersionException e) {
                     LOGGER.warn( jobName, "zookeeper bad version exception happens", e);
@@ -286,15 +290,13 @@ public class ShardingService extends AbstractShrineService {
     }
 
     /**
-     * 获取运行在本作业实例的分片项集合.
+     * 获取运行在本作业服务器的分片序列号.
      *
-     * @return 运行在本作业实例的分片项集合
+     * @return 运行在本作业服务器的分片序列号
      */
-    public List<Integer> getLocalShardingItems() {
-        if (JobRegistry.getInstance().isShutdown(jobName) || !serverService.isAvailableServer(JobRegistry.getInstance().getJobInstance(jobName).getIp())) {
-            return Collections.emptyList();
-        }
-        return getShardingItems(JobRegistry.getInstance().getJobInstance(jobName).getJobInstanceId());
+    public List<Integer> getLocalHostShardingItems() {
+        String value = getJobNodeStorage().getJobNodeDataDirectly(ShardingNode.getShardingNode(executorName));
+        return ItemUtils.toItemList(value);
     }
 
     /**

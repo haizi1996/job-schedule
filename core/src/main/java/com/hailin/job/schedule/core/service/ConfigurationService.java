@@ -444,20 +444,29 @@ public class ConfigurationService extends AbstractShrineService {
      * 如果存在/config/enabledReport节点，则返回节点的内容；
      * 如果不存在/config/enabledReport节点，如果作业类型是Java或者Shell，则返回true；否则，返回false；
      */
-//    public boolean isEnabledReport() {
-//        Boolean isEnabledReportInJobConfig = jobConfiguration.getEnabledReport();
-//
-//        if (isEnabledReportInJobConfig != null) {
-//            return isEnabledReportInJobConfig;
-//        }
-//        // cron和passive作业默认上报
-//        JobType jobType = JobTypeManager.get(jobConfiguration.getJobType());
-//        if (jobType.isCron() || jobType.isPassive()) {
-//            return true;
-//        }
-//
-//        return false;
-//    }
+    public boolean isEnabledReport() {
+        Boolean isEnabledReportInJobConfig = jobConfiguration.getEnabledReport();
+
+        if (isEnabledReportInJobConfig != null) {
+            return isEnabledReportInJobConfig;
+        }
+        // cron和passive作业默认上报
+        JobType jobType = JobTypeManager.get(jobConfiguration.getJobType());
+        if (jobType.isCron() || jobType.isPassive()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 获取作业自定义参数.
+     *
+     * @return 作业自定义参数
+     */
+    public String getJobParameter() {
+        return jobConfiguration.getJobParameter();
+    }
 
     public boolean isUseDispreferList() {
         return jobConfiguration.isUseDispreferList();

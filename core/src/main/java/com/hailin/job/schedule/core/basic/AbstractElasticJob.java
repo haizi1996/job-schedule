@@ -21,7 +21,10 @@ import com.hailin.shrine.job.common.exception.JobSystemException;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.CollectionUtils;
 
+import java.util.Date;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 
@@ -179,6 +182,24 @@ public abstract class AbstractElasticJob implements Stoppable {
                 return;
             }
 
+            shardingContext = executionContextService.getJobExecutionShardingContext();
+            if (CollectionUtils.isEmpty(shardingContext.getShardingItems())){
+                LOGGER.debug(  "{} 's items of the executor is empty, do nothing about business.",
+                        jobName);
+                callbackWhenShardingItemIsEmpty(shardingContext);
+                return;
+            }
+
+            if (configurationService.isInPausePeriod()) {
+                LOGGER.info("the job {} current running time is in pausePeriod, do nothing about business.", jobName);
+                return;
+            }
+            executeJobInternal(shardingContext);
+            if (isFailoverSupported() && configurationService.isFailover() && !stopped && !forceStopped && !aborted){
+                failoverService.failoverIfNecessary();
+            }
+            LOGGER.debug( "Saturn finish to execute job [{}], sharding context:{}.", jobName,
+                    shardingContext);
 
         }catch (Exception e){
             LOGGER.warn(e.getMessage() + " " +jobName , e);
@@ -187,6 +208,44 @@ public abstract class AbstractElasticJob implements Stoppable {
         }
 
     }
+
+    private void executeJobInternal(JobExecutionMultipleShardingContext shardingContext){
+        //  注册任务开始
+        executionService.registerJobBegin(shardingContext);
+
+        try {
+            executeJob(shardingContext);
+        }finally {
+            List<Integer> shardingItems = shardingContext.getShardingItems();
+
+            if (!shardingItems.isEmpty()){
+                Date nextFireTimePausePeriodEffected = jobScheduler.getNextFireTimePausePeriodEffected();
+                boolean isEnabledReport = configurationService.isEnabledReport();
+                for (int item : shardingItems) {
+                    if (isEnabledReport && !checkIfZkLostAfterExecution(item)) {
+                        continue;
+                    }
+                    if (!aborted) {
+                        executionService.registerJobCompletedByItem(shardingContext, item, nextFireTimePausePeriodEffected);
+                    }
+                    if (isFailoverSupported() && configService.isFailover()) {
+                        failoverService.updateFailoverComplete(item);
+                    }
+                }
+            }
+
+        }
+    }
+
+    /**
+     * 如果不存在该分片的running节点，有不是关闭了enabledReport的话，不能继续执行
+     * @param item
+     * @return
+     */
+    private boolean checkIfZkLostAfterExecution(int item){
+
+    }
+
     protected boolean mayRunDownStream(final JobExecutionMultipleShardingContext shardingContext) {
         return true;
     }

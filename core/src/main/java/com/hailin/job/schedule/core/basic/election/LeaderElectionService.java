@@ -7,6 +7,7 @@ import com.hailin.job.schedule.core.basic.server.ServerService;
 import com.hailin.job.schedule.core.basic.storage.JobNodeStorage;
 import com.hailin.job.schedule.core.basic.storage.LeaderExecutionCallback;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
+import org.apache.zookeeper.server.quorum.Election;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +83,11 @@ public class LeaderElectionService extends AbstractShrineService {
      * @return 当前节点是否是主节点
      */
     public boolean isLeader() {
-        return !JobRegistry.getInstance().isShutdown(jobName) && JobRegistry.getInstance().getJobInstance(jobName).getJobInstanceId().equals(jobNodeStorage.getJobNodeData(LeaderNode.INSTANCE));
+        while(!shutDown.get() && !hasLeader()){
+            LOGGER.info( "No leader, try to election {}" , jobName);
+            leaderElection();
+        }
+        return executorName.equals(getJobNodeStorage().getJobNodeDataDirectly(ElectionNode.LEADER_HOST));
     }
 
     /**
@@ -99,8 +104,8 @@ public class LeaderElectionService extends AbstractShrineService {
                 if (shutDown.get()){
                     return;
                 }
-                if (!getJobNodeStorage().isJobNodeExisted(LeaderNode.INSTANCE)){
-                    getJobNodeStorage().fillEphemeralJobNode(LeaderNode.INSTANCE, executorName);
+                if (!getJobNodeStorage().isJobNodeExisted(ElectionNode.LEADER_HOST)){
+                    getJobNodeStorage().fillEphemeralJobNode(ElectionNode.LEADER_HOST, executorName);
                     LOGGER.info(jobName, "executor {} become job {}'s leader", executorName, jobName);
                 }
             }

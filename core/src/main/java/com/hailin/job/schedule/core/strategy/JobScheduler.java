@@ -35,6 +35,7 @@ import com.hailin.job.schedule.core.schedule.JobScheduleController;
 import com.hailin.job.schedule.core.schedule.JobShutdownHookPlugin;
 import com.hailin.job.schedule.core.schedule.ShrineJob;
 import com.hailin.job.schedule.core.service.ConfigurationService;
+import lombok.Getter;
 import lombok.Setter;
 import org.apache.curator.framework.CuratorFramework;
 import org.quartz.JobBuilder;
@@ -57,6 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author zhanghailin
  */
 @Setter
+@Getter
 public class JobScheduler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JobScheduler.class);
