@@ -2,10 +2,7 @@ package com.hailin.job.schedule.core.strategy;
 
 import com.google.common.base.Optional;
 import com.hailin.job.schedule.core.basic.JobTypeManager;
-import com.hailin.job.schedule.core.job.JobFacade;
-import com.hailin.job.schedule.core.job.type.script.ScriptJob;
 import com.hailin.job.schedule.core.listener.ListenerManager;
-import com.hailin.shrine.job.common.exception.JobConfigurationException;
 import com.hailin.shrine.job.common.exception.JobException;
 import com.hailin.shrine.job.common.exception.JobSystemException;
 import com.hailin.job.schedule.core.basic.AbstractElasticJob;
@@ -18,7 +15,6 @@ import com.hailin.job.schedule.core.basic.execution.ExecutionService;
 import com.hailin.job.schedule.core.basic.failover.FailoverService;
 import com.hailin.job.schedule.core.config.JobConfiguration;
 import com.hailin.job.schedule.core.basic.schdule.SchedulerFacade;
-import com.hailin.job.schedule.core.basic.schdule.ShrineJobFacade;
 import com.hailin.job.schedule.core.basic.server.ServerService;
 import com.hailin.job.schedule.core.basic.sharding.ShardingService;
 import com.hailin.job.schedule.core.basic.statistics.StatisticsService;
@@ -28,18 +24,15 @@ import com.hailin.job.schedule.core.basic.threads.ScheduleThreadFactory;
 import com.hailin.job.schedule.core.basic.threads.TaskQueue;
 import com.hailin.job.schedule.core.executor.LimitMaxJobService;
 import com.hailin.job.schedule.core.executor.ScheduleExecutorService;
-import com.hailin.job.schedule.core.job.trigger.ShrineScheduler;
+import com.hailin.job.schedule.core.job.trigger.Schedule;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.job.schedule.core.reg.zookeeper.ZkCacheManager;
-import com.hailin.job.schedule.core.schedule.JobScheduleController;
 import com.hailin.job.schedule.core.schedule.JobShutdownHookPlugin;
 import com.hailin.job.schedule.core.schedule.ShrineJob;
 import com.hailin.job.schedule.core.service.ConfigurationService;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.curator.framework.CuratorFramework;
-import org.quartz.JobBuilder;
-import org.quartz.JobDetail;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.impl.StdSchedulerFactory;
@@ -224,7 +217,7 @@ public class JobScheduler {
      */
     public Date getNextFireTimePausePeriodEffected() {
         try {
-            ShrineScheduler saturnScheduler = job.getScheduler();
+            Schedule saturnScheduler = job.getScheduler();
             return saturnScheduler == null ? null : saturnScheduler.getNextFireTimePausePeriodEffected();
         } catch (Throwable t) {
             LOGGER.error( jobName, "fail to get next fire time", t);

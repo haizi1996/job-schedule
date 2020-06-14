@@ -380,9 +380,6 @@ public class SingleThreadEventExecutor extends AbstractEventExecutor {
     }
 
 
-
-
-
     private boolean ensureThreadStarted(int oldState) {
         if (oldState == ST_NOT_STARTED) {
             try {

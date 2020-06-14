@@ -3,11 +3,15 @@ package com.hailin.job.schedule.core.basic;
 import com.google.common.collect.Maps;
 import com.hailin.job.schedule.core.basic.java.JavaShardingItemCallable;
 import com.hailin.job.schedule.core.basic.java.ShardingItemFutureTask;
+import com.hailin.job.schedule.core.basic.java.TimeoutSchedulerExecutor;
 import com.hailin.shrine.job.ScheduleJobReturn;
+import com.hailin.shrine.job.ScheduleSystemErrorGroup;
+import com.hailin.shrine.job.ScheduleSystemReturnCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -43,14 +47,36 @@ public class ScheduleJavaJob extends AbstractScheduleJob {
                     ShardingItemFutureTask shardingItemFutureTask = new ShardingItemFutureTask(createCallable(jobName , key , itemVal , timeoutSeconds , scheduleContext ,this) , null);
                     Future<?> callFuture = executorService.submit(shardingItemFutureTask);
                     if (timeoutSeconds > 0){
-
+                        TimeoutSchedulerExecutor.scheduleTimeoutJob(scheduleContext.getExecutorName() , timeoutSeconds , shardingItemFutureTask);
                     }
+                    shardingItemFutureTask.setCallFuture(callFuture);
+                    futureTaskMap.put(key , shardingItemFutureTask);
+                }catch (Throwable t){
+                    log.error( t.getMessage(), t);
+                    retMap.put(key, new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL, t.getMessage(),
+                            ScheduleSystemErrorGroup.FAIL));
                 }
 
             }
         }
 
-        return null;
+        for (Map.Entry<Integer, ShardingItemFutureTask> entry : futureTaskMap.entrySet()) {
+            Integer item = entry.getKey();
+            ShardingItemFutureTask futureTask = entry.getValue();
+            try {
+                futureTask.getCallFuture().get();
+            }catch (Exception e){
+                log.error( e.getMessage(), e);
+                retMap.put(item, new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL, e.getMessage(),
+                        ScheduleSystemErrorGroup.FAIL));
+                continue;
+            }
+            retMap.put(item , futureTask.getCallable().getScheduleJobReturn());
+        }
+        synchronized (futureTaskMap){
+            futureTaskMap.clear();
+        }
+        return retMap;
     }
 
     public JavaShardingItemCallable createCallable(String jobName, Integer item, String itemVal, int timeoutSeconds, ScheduleExecutionContext scheduleContext, AbstractScheduleJob  scheduleJob) {
@@ -61,6 +87,30 @@ public class ScheduleJavaJob extends AbstractScheduleJob {
     @Override
     public void onForceStop(int item) {
 
+    }
+
+    public ScheduleJobReturn doExecution(final String jobName , final  Integer key , final String value , ScheduleExecutionContext context , final JavaShardingItemCallable callable ) throws Throwable {
+        String jobClass = context.getJobConfiguration().getJobClass();
+        log.info("Running SaturnJavaJob,  jobClass [{}], item [{}]", jobClass, key);
+        try {
+            Object ret = new JobBusinessClassMethodCaller() {
+                @Override
+                protected Object internalCall(ClassLoader jobClassLoader, Class<?> saturnJobExecutionContextClazz) throws Exception {
+                    return jobBusinessInstance.getClass().getMethod("handleJvaJob" , String.class , Integer.class , String.class , saturnJobExecutionContextClazz).invoke(jobBusinessInstance,jobName , key , value , callable.getContextForJob(jobClassLoader));
+                }
+            }.call(jobBusinessInstance ,scheduleExecutorService);
+             ScheduleJobReturn scheduleJobReturn = (ScheduleJobReturn) JavaShardingItemCallable.cloneObject(ret , scheduleExecutorService.getExecutorClassLoader()) ;
+            if (Objects.nonNull(scheduleJobReturn)){
+                callable.setBusinessReturned(true);
+            }
+            return scheduleJobReturn;
+        }catch (Exception e){
+            if (e.getCause() instanceof ThreadDeath) {
+                throw e.getCause();
+            }
+            String message = logBusinessExceptionIfNecessary(jobName, e);
+            return new ScheduleJobReturn(ScheduleSystemReturnCode.USER_FAIL, message, ScheduleSystemErrorGroup.FAIL);
+        }
     }
 
     @Override
@@ -77,6 +127,23 @@ public class ScheduleJavaJob extends AbstractScheduleJob {
                               ScheduleExecutionContext shardingContext, final JavaShardingItemCallable callable) {
         callJobBusinessClassMethodTimeoutOrForceStop(jobName, shardingContext, callable, "beforeTimeout", key, value);
     }
+    public void postTimeout(final String jobName, final Integer key, final String value,
+                            ScheduleExecutionContext shardingContext, final JavaShardingItemCallable callable) {
+        callJobBusinessClassMethodTimeoutOrForceStop(jobName, shardingContext, callable, "onTimeout", key, value);
+    }
+
+
+
+    public void beforeForceStop(final String jobName, final Integer key, final String value,
+                                ScheduleExecutionContext shardingContext, final JavaShardingItemCallable callable) {
+        callJobBusinessClassMethodTimeoutOrForceStop(jobName, shardingContext, callable, "beforeForceStop", key, value);
+    }
+
+    public void postForceStop(final String jobName, final Integer key, final String value,
+                              ScheduleExecutionContext shardingContext, final JavaShardingItemCallable callable) {
+        callJobBusinessClassMethodTimeoutOrForceStop(jobName, shardingContext, callable, "postForceStop", key, value);
+    }
+
 
     private void callJobBusinessClassMethodTimeoutOrForceStop(String jobName, ScheduleExecutionContext shardingContext, JavaShardingItemCallable callable, String methodName, Integer key, String value) {
         String jobClass = shardingContext.getJobConfiguration().getJobClass();

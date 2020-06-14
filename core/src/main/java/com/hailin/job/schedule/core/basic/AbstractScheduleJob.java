@@ -1,16 +1,15 @@
 package com.hailin.job.schedule.core.basic;
 
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.hailin.job.schedule.core.basic.sharding.context.JobExecutionMultipleShardingContext;
+import com.hailin.job.schedule.core.basic.statistics.ProcessCountStatistics;
 import com.hailin.job.schedule.core.executor.ScheduleExecutorService;
 import com.hailin.shrine.job.ScheduleJobReturn;
 import com.hailin.shrine.job.ScheduleSystemErrorGroup;
 import com.hailin.shrine.job.ScheduleSystemReturnCode;
 import com.hailin.shrine.job.common.exception.JobException;
 import org.apache.commons.collections.MapUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.PropertyPlaceholderHelper;
@@ -62,13 +61,41 @@ public abstract class AbstractScheduleJob extends AbstractElasticJob{
             }
             ScheduleJobReturn jobReturn = retMap.get(item);
             if (Objects.isNull(jobReturn)){
-                jobReturn = new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL , "Can not find the corresponding SaturnJobReturn", ScheduleSystemErrorGroup.FAIL)
+                jobReturn = new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL , "Can not find the corresponding SaturnJobReturn", ScheduleSystemErrorGroup.FAIL);
                 retMap.put(item , jobReturn);
             }
             updateExecuteResult(jobReturn, scheduleContext, item);
         }
         long end = System.currentTimeMillis();
         log.info("{} finished, totalCost={}ms, return={}", jobName, (end - start), retMap);
+    }
+
+    private void updateExecuteResult(ScheduleJobReturn jobReturn, ScheduleExecutionContext scheduleContext, Integer item) {
+        int successCount = 0 , errorCount = 0;
+        if (ScheduleSystemReturnCode.JOB_NO_COUNT != jobReturn.getReturnCode()){
+            int errorGroup = jobReturn.getErrorGroup();
+            if (errorGroup == ScheduleSystemErrorGroup.SUCCESS) {
+                successCount ++ ;
+            }else {
+                if (errorGroup == ScheduleSystemErrorGroup.TIMEOUT){
+                    onTimeout(item);
+                }else if (errorGroup == ScheduleSystemErrorGroup.FAIL_NEED_RAISE_ALARM){
+                    onNeedRaiseAlarm(item , jobReturn.getReturnMsg());
+                }
+                errorCount++;
+            }
+            // 展现分片处理失败的状态
+            scheduleContext.getShardingItemResults().put(item , jobReturn);
+            // 只要有出错和失败的分片 就是处理失败 否则认为处理成功
+            if (errorCount == 0 && successCount >= 0) {
+                ProcessCountStatistics.incrementProcessSuccessCount(executorName, jobName, successCount);
+            } else {
+                ProcessCountStatistics.increaseErrorCountDelta(executorName, jobName);
+                ProcessCountStatistics.incrementProcessFailureCount(executorName, jobName, errorCount);
+            }
+        }
+
+
     }
 
     /**

@@ -2,29 +2,31 @@ package com.hailin.job.schedule.core.basic;
 
 import com.hailin.job.schedule.core.basic.control.ReportService;
 import com.hailin.job.schedule.core.basic.execution.ExecutionContextService;
+import com.hailin.job.schedule.core.basic.execution.ExecutionNode;
 import com.hailin.job.schedule.core.basic.execution.ExecutionService;
 import com.hailin.job.schedule.core.basic.failover.FailoverService;
 import com.hailin.job.schedule.core.basic.server.ServerService;
 import com.hailin.job.schedule.core.basic.sharding.ShardingService;
 import com.hailin.job.schedule.core.basic.sharding.context.JobExecutionMultipleShardingContext;
+import com.hailin.job.schedule.core.basic.storage.JobNodePath;
 import com.hailin.job.schedule.core.config.JobProperties;
 import com.hailin.job.schedule.core.executor.ScheduleExecutorService;
-import com.hailin.job.schedule.core.handler.ExecutorServiceHandler;
-import com.hailin.job.schedule.core.handler.ExecutorServiceHandlerRegistry;
 import com.hailin.job.schedule.core.job.trigger.Trigger;
 import com.hailin.job.schedule.core.service.ConfigurationService;
 import com.hailin.job.schedule.core.strategy.JobScheduler;
-import com.hailin.job.schedule.core.job.trigger.ShrineScheduler;
-import com.hailin.job.schedule.core.job.trigger.Triggered;
+import com.hailin.job.schedule.core.job.trigger.Schedule;
 import com.hailin.shrine.job.common.exception.JobException;
 import com.hailin.shrine.job.common.exception.JobSystemException;
 import lombok.Data;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.CollectionUtils;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 
@@ -68,7 +70,7 @@ public abstract class AbstractElasticJob implements Stoppable {
 
     protected JobScheduler jobScheduler;
 
-    protected ShrineScheduler scheduler;
+    protected Schedule scheduler;
 
     protected ScheduleExecutorService scheduleExecutorService;
 
@@ -89,9 +91,8 @@ public abstract class AbstractElasticJob implements Stoppable {
             LOGGER.error( "{} Trigger init failed " , jobName , e);
             throw new JobException(e);
         }
-        executorService = ExecutorServiceHandlerRegistry.getExecutorServiceHandler(jobName, (ExecutorServiceHandler) getHandler(JobProperties.JobPropertiesEnum.EXECUTOR_SERVICE_HANDLER));
 
-        scheduler = new ShrineScheduler(this , trigger);
+        scheduler = new Schedule(this , trigger);
         scheduler.start();
     }
 
@@ -105,18 +106,7 @@ public abstract class AbstractElasticJob implements Stoppable {
         running = true;
     }
 
-    private Object getHandler(final JobProperties.JobPropertiesEnum jobPropertiesEnum) {
-        String handlerClassName = jobRootConfig.getTypeConfig().getCoreConfig().getJobProperties().get(jobPropertiesEnum);
-        try {
-            Class<?> handlerClass = Class.forName(handlerClassName);
-            if (jobPropertiesEnum.getClassType().isAssignableFrom(handlerClass)) {
-                return handlerClass.newInstance();
-            }
-            return getDefaultHandler(jobPropertiesEnum, handlerClassName);
-        } catch (final ReflectiveOperationException ex) {
-            return getDefaultHandler(jobPropertiesEnum, handlerClassName);
-        }
-    }
+
 
     private Object getDefaultHandler(final JobProperties.JobPropertiesEnum jobPropertiesEnum, final String handlerClassName) {
         LOGGER.warn("Cannot instantiation class '{}', use default '{}' class.", handlerClassName, jobPropertiesEnum.getKey());
@@ -228,7 +218,7 @@ public abstract class AbstractElasticJob implements Stoppable {
                     if (!aborted) {
                         executionService.registerJobCompletedByItem(shardingContext, item, nextFireTimePausePeriodEffected);
                     }
-                    if (isFailoverSupported() && configService.isFailover()) {
+                    if (isFailoverSupported() && configurationService.isFailover()) {
                         failoverService.updateFailoverComplete(item);
                     }
                 }
@@ -238,11 +228,35 @@ public abstract class AbstractElasticJob implements Stoppable {
     }
 
     /**
-     * 如果不存在该分片的running节点，有不是关闭了enabledReport的话，不能继续执行
-     * @param item
-     * @return
+     * 如果不存在该分片的running节点，有不是关闭了enabledReport的话，不能继续执行 如果所有该executor分片running节点属于当前ZK，继续执行
+     * @param item 分片信息
+     * @return 是否继续执行完成complete节点 清空failover信息
      */
     private boolean checkIfZkLostAfterExecution(int item){
+        CuratorFramework curatorFramework = (CuratorFramework)executionService.getCoordinatorRegistryCenter().getRawClient();
+        try {
+            String runningPath = JobNodePath.getNodeFullPath(jobName , ExecutionNode.getRunningNode(item));
+            Stat itemStat = curatorFramework.checkExists().forPath(runningPath);
+            long sessionId = curatorFramework.getZookeeperClient().getZooKeeper().getSessionId();
+            //有itemStat的情况
+            if (Objects.nonNull(itemStat)){
+                long ephemeralOwner = itemStat.getEphemeralOwner();
+                if (ephemeralOwner != sessionId) {
+                    LOGGER.info("item={} 's running node doesn't belong to current zk, node sessionid is {}, current zk "
+                                    + "sessionid is {}", item, ephemeralOwner, sessionId);
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+            // 如果itemStat是空，要么是已经failover完了，要么是没有节点failover；两种情况都返回false
+            LOGGER.info( "item={} 's running node is not exists, zk sessionid={} ", item, sessionId);
+
+            return false;
+        }catch (Throwable e){
+            LOGGER.error(e.getMessage(), e);
+            return false;
+        }
 
     }
 
@@ -402,11 +416,11 @@ public abstract class AbstractElasticJob implements Stoppable {
         this.jobScheduler = jobScheduler;
     }
 
-    public ShrineScheduler getScheduler() {
+    public Schedule getScheduler() {
         return scheduler;
     }
 
-    public void setScheduler(ShrineScheduler scheduler) {
+    public void setScheduler(Schedule scheduler) {
         this.scheduler = scheduler;
     }
 

@@ -5,11 +5,21 @@ import com.hailin.job.schedule.core.basic.ScheduleExecutionContext;
 import com.hailin.job.schedule.core.basic.ScheduleJavaJob;
 import com.hailin.job.schedule.core.basic.ShardingItemCallable;
 import com.hailin.job.schedule.core.job.ScheduleJobExecutionContext;
+import com.hailin.job.schedule.core.job.constant.ShrineConstant;
+import com.hailin.job.schedule.core.utils.ScheduleSystemOutputStream;
+import com.hailin.shrine.job.ScheduleJobReturn;
+import com.hailin.shrine.job.ScheduleSystemErrorGroup;
+import com.hailin.shrine.job.ScheduleSystemReturnCode;
+import lombok.Getter;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Getter
+@Setter
 public class JavaShardingItemCallable extends ShardingItemCallable {
 
     protected static final int INIT = 0;
@@ -105,10 +115,37 @@ public class JavaShardingItemCallable extends ShardingItemCallable {
         try {
             ((ScheduleJavaJob) scheduleJob).beforeTimeout(jobName, item, itemValue, shardingContext, this);
         } catch (Throwable t) {
-            log.error( jobName + t.toString(), t);
+            log.error(jobName + t.toString(), t);
         }
     }
 
+    public long getExecutionTime() {
+        return endTime - startTime;
+    }
+
+    protected void onTimeout() {
+        try {
+            ((ScheduleJavaJob) scheduleJob).postTimeout(jobName, item, itemValue, shardingContext, this);
+        } catch (Throwable t) {
+            log.error(t.toString(), t);
+        }
+    }
+
+    public void beforeForceStop() {
+        try {
+            ((ScheduleJavaJob) scheduleJob).beforeForceStop(jobName, item, itemValue, shardingContext, this);
+        } catch (Throwable t) {
+            log.error(t.toString(), t);
+        }
+    }
+
+    protected void postForceStop() {
+        try {
+            ((ScheduleJavaJob) scheduleJob).postForceStop(jobName, item, itemValue, shardingContext, this);
+        } catch (Throwable t) {
+            log.error(t.toString(), t);
+        }
+    }
 
     /**
      * 生成分片上下文对象
@@ -130,5 +167,77 @@ public class JavaShardingItemCallable extends ShardingItemCallable {
         }
 
         return contextForJob;
+    }
+
+    public ScheduleJobReturn call() {
+        reset();
+
+        currentThread = Thread.currentThread();
+        ScheduleJobReturn temp = null;
+        try {
+
+            beforeExecution();
+
+            temp = doExecution();
+
+            // 在此之后，不能再强制停止本线程
+            breakForceStop = true;
+        } catch (Throwable t) {
+            // 在此之后，不能再强制停止本线程
+            breakForceStop = true;
+
+            // 不是超时，不是强制停止。 打印错误日志，设置SaturnJobReturn。
+            if (status.get() != TIMEOUT && status.get() != FORCE_STOP) {
+                log.error(t.toString(), t);
+                temp = new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL, t.getMessage(),
+                        ScheduleSystemErrorGroup.FAIL);
+            }
+
+        } finally {
+            if (status.compareAndSet(INIT, SUCCESS)) {
+                scheduleJobReturn = temp;
+            }
+            if (Objects.nonNull(scheduleJob) && scheduleJob.getConfigurationService().showNormalLog()) {
+                String jobLog = ScheduleSystemOutputStream.clearAndGetLog();
+                if (Objects.nonNull(jobLog) && jobLog.length() > ShrineConstant.MAX_JOB_LOG_DATA_LENGTH) {
+                    log.info("As the job log exceed max length, only the previous {} characters will be reported",
+                            ShrineConstant.MAX_JOB_LOG_DATA_LENGTH);
+                    jobLog = jobLog.substring(0, ShrineConstant.MAX_JOB_LOG_DATA_LENGTH);
+                }
+                this.shardingContext.putJobLog(this.item, jobLog);
+            }
+        }
+        return scheduleJobReturn;
+    }
+
+    public ScheduleJobReturn doExecution() throws Throwable {
+        return ((ScheduleJavaJob) scheduleJob).doExecution(jobName, item, itemValue, shardingContext, this);
+    }
+
+    protected void checkAndSetSaturnJobReturn() {
+        switch (status.get()) {
+            case TIMEOUT:
+                scheduleJobReturn = new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL,
+                        "execute job timeout(" + timeoutSeconds * 1000 + "ms)", ScheduleSystemErrorGroup.TIMEOUT);
+                break;
+            case FORCE_STOP:
+                scheduleJobReturn = new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL, "the job was forced to stop",
+                        ScheduleSystemErrorGroup.FAIL);
+                break;
+            case STOPPED:
+                scheduleJobReturn = new ScheduleJobReturn(ScheduleSystemReturnCode.SYSTEM_FAIL,
+                        "the job was stopped, will not run the business code", ScheduleSystemErrorGroup.FAIL);
+                break;
+            default:
+                break;
+        }
+        if (scheduleJobReturn == null) {
+            scheduleJobReturn = new ScheduleJobReturn(ScheduleSystemReturnCode.USER_FAIL,
+                    "the SaturnJobReturn can not be null", ScheduleSystemErrorGroup.FAIL);
+        }
+    }
+
+    public void afterExecution() {
+        this.endTime = System.currentTimeMillis();
     }
 }
