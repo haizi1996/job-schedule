@@ -38,4 +38,8 @@ public class ShardingItemCallable {
     protected long startTime;
 
     protected long endTime;
+
+    public long getExecutionTime(){
+        return endTime - startTime;
+    }
 }
