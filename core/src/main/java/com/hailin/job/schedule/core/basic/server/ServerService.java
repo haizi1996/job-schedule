@@ -2,11 +2,10 @@ package com.hailin.job.schedule.core.basic.server;
 
 import com.hailin.job.schedule.core.basic.election.LeaderElectionService;
 import com.hailin.job.schedule.core.basic.instance.InstanceNode;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import com.hailin.shrine.job.common.util.LocalHostService;
 import com.hailin.job.schedule.core.basic.AbstractElasticJob;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
-import com.hailin.job.schedule.core.basic.JobRegistry;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 
 import java.util.Collections;
 import java.util.List;
@@ -15,7 +14,7 @@ import java.util.List;
  * 作业服务器节点服务
  * @author zhanghailin
  */
-public class ServerService extends AbstractShrineService {
+public class ServerService extends AbstractScheduleService {
 
 
 
@@ -24,8 +23,8 @@ public class ServerService extends AbstractShrineService {
     private ServerNode serverNode;
 
 
-    public ServerService(String jobName, CoordinatorRegistryCenter registryCenter) {
-        super(jobName, registryCenter);
+    public ServerService(final JobScheduler jobScheduler) {
+        super(jobScheduler);
         serverNode = new ServerNode(jobName);
     }
 
@@ -125,16 +124,7 @@ public class ServerService extends AbstractShrineService {
     public boolean isEnableServer(final String ip) {
         return !ServerStatus.DISABLED.name().equals(jobNodeStorage.getJobNodeData(serverNode.getServerNode(ip)));
     }
-    /**
-     * 持久化作业服务器上线信息.
-     *
-     * @param enabled 作业是否启用
-     */
-    public void persistOnline(final boolean enabled) {
-        if (!JobRegistry.getInstance().isShutdown(jobName)) {
-            jobNodeStorage.fillJobNode(serverNode.getServerNode(JobRegistry.getInstance().getJobInstance(jobName).getIp()), enabled ? "" : ServerStatus.DISABLED.name());
-        }
-    }
+
     /**
      * 获取是否还有可用的作业服务器.
      *

@@ -6,6 +6,7 @@ import com.hailin.job.schedule.core.listener.AbstractJobListener;
 import com.hailin.job.schedule.core.listener.AbstractListenerManager;
 import com.hailin.job.schedule.core.basic.config.ConfigurationNode;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
@@ -26,8 +27,8 @@ public class JobOperationListenerManager extends AbstractListenerManager {
 
     private ExecutorService jobDeleteExecutorService;
 
-    public JobOperationListenerManager(String jobName, CoordinatorRegistryCenter regCenter) {
-        super(jobName, regCenter);
+    public JobOperationListenerManager(final JobScheduler jobScheduler) {
+        super(jobScheduler);
     }
 
     @Override

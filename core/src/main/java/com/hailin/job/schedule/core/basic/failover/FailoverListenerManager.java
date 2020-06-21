@@ -2,11 +2,13 @@ package com.hailin.job.schedule.core.basic.failover;
 
 import com.google.common.collect.Sets;
 import com.hailin.job.schedule.core.basic.execution.ExecutionNode;
+import com.hailin.job.schedule.core.basic.execution.ExecutionService;
 import com.hailin.job.schedule.core.basic.sharding.ShardingService;
 import com.hailin.job.schedule.core.config.JobConfiguration;
 import com.hailin.job.schedule.core.listener.AbstractJobListener;
 import com.hailin.job.schedule.core.listener.AbstractListenerManager;
 import com.hailin.job.schedule.core.service.ConfigurationService;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import com.hailin.shrine.job.common.util.JsonUtils;
 import com.hailin.job.schedule.core.basic.JobRegistry;
 import com.hailin.job.schedule.core.basic.config.ConfigurationNode;
@@ -14,10 +16,13 @@ import com.hailin.job.schedule.core.basic.instance.InstanceNode;
 import com.hailin.job.schedule.core.basic.storage.JobNodePath;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.NodeCacheListener;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -30,9 +35,11 @@ public class FailoverListenerManager extends AbstractListenerManager {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(FailoverListenerManager.class);
 
-    private volatile boolean isShutDown = false;
+    private volatile boolean isShutdown = false;
 
-    private ConfigurationService configurationService;
+    private ConfigurationService configService;
+
+    private final ExecutionService executionService;
 
     //线程池
     private ExecutorService executorService;
@@ -41,136 +48,154 @@ public class FailoverListenerManager extends AbstractListenerManager {
 
     private final Set<String> runningAndFailoverPath;
 
-    private final ConfigurationService configService;
-
-    private final ShardingService shardingService;
-
     private final FailoverService failoverService;
 
-    private final ConfigurationNode configNode;
 
-    private final InstanceNode instanceNode;
+    public FailoverListenerManager(final JobScheduler jobScheduler) {
 
-    public FailoverListenerManager(final String jobName , final CoordinatorRegistryCenter regCenter) {
-
-        super(jobName , regCenter);
-        executionPath = JobNodePath.getNodeFullPath(jobName , ExecutionNode.ROOT);
-        runningAndFailoverPath = Sets.newHashSet();
-        configService = new ConfigurationService( jobName , regCenter);
-        shardingService = new ShardingService( jobName , regCenter);
-        failoverService = new FailoverService( jobName , regCenter);
-        configNode = new ConfigurationNode(jobName);
-        instanceNode = new InstanceNode(jobName );
+        super(jobScheduler);
+        configService = jobScheduler.getConfigService();
+        executionService = jobScheduler.getExecutionService();
+        failoverService = jobScheduler.getFailoverService();
+        executionPath = JobNodePath.getNodeFullPath(jobName, ExecutionNode.ROOT);
+        runningAndFailoverPath = new HashSet<>();
     }
 
     @Override
     public void start() {
-        addDataListener(new JobCrashedJobListener());
-        addDataListener(new FailoverSettingsChangedJobListener());
+        zkCacheManager.addTreeCacheListener(new ExecutionPathListener(), executionPath, 1);
+
     }
 
-    private boolean isFailoverEnabled() {
-        JobConfiguration jobConfig = configService.load(true);
-        return null != jobConfig && jobConfig.isFailover();
+    @Override
+    public void shutdown() {
+        super.shutdown();
+        isShutdown = true;
+        zkCacheManager.closeTreeCache(executionPath, 1);
+        closeRunningAndFailoverNodeCaches();
     }
 
-//    /**
-//     * 失效转移的监听器
-//     */
-//    class ExecutionPathListener extends AbstractJobListener{
-//
-//        @Override
-//        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
-//            try {
-//                if(isShutDown){
-//                    return;
-//                }
-//                //没有失效的分片项
-//                if (executionPath.equals(path)){
-//                    return;
-//                }
-//                int item = getItem(path);
-//                String runningPath = JobNodePath.getNodeFullPath(jobName , ExecutionNode.getRunningNode(item));
-//                String failoverPath = JobNodePath.getNodeFullPath(jobName , FailoverNode.getExecutionFailoverNode(item));
-//                switch (event.getType()){
-//                    case NODE_ADDED:
-//                        zkCacheManager.addNodeCacheListener();
-//                }
-//            }catch (Throwable throwable){
-//
-//            }
-//        }
-//
-//        //获取分片项
-//        private int getItem(String path){
-//            return Integer.parseInt(path.substring(path.lastIndexOf("/")+ 1));
-//        }
-//    }
+    private void closeRunningAndFailoverNodeCaches() {
+        for (String nodePath : runningAndFailoverPath) {
+            zkCacheManager.closeNodeCache(nodePath);
+        }
+    }
 
 
-//    class RunningPathListener implements NodeCacheListener {
-//
-//        private int item;
-//
-//        public RunningPathListener(int item) {
-//            this.item = item;
-//        }
-//
-//        @Override
-//        public void nodeChanged() throws Exception {
-//            zkCacheManager.getExecutorService().execute(new Runnable() {
-//                @Override
-//                public void run() {
-//                    try {
-//                        if (isShutDown) {
-//                            return;
-//                        }
-//                        if (!executionService.isRunning(item)) {
-//                            failover(item);
-//                        }
-//                    } catch (Throwable t) {
-//                        LOGGER.error( jobName, t.getMessage(), t);
-//                    }
-//                }
-//            });
-//        }
-//    }
+    private synchronized void failover(final Integer item) {
+        if (jobScheduler == null || jobScheduler.getJob() == null) {
+            return;
+        }
+        if (!jobScheduler.getJob().isFailoverSupported() || !configService.isFailover() || executionService
+                .isCompleted(item)) {
+            return;
+        }
 
+        failoverService.createCrashedFailoverFlag(item);
 
-    class JobCrashedJobListener extends AbstractJobListener {
+        if (!executionService.hasRunningItems(jobScheduler.getShardingService().getLocalHostShardingItems())) {
+            failoverService.failoverIfNecessary();
+        }
+    }
+
+    /**
+     * 失效转移的监听器
+     */
+    class ExecutionPathListener extends AbstractJobListener{
 
         @Override
         protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
-            if (isFailoverEnabled() && TreeCacheEvent.Type.NODE_REMOVED == event.getType() && instanceNode.isInstancePath(path)) {
-                String jobInstanceId = path.substring(instanceNode.getInstanceFullPath().length() + 1);
-                if (jobInstanceId.equals(JobRegistry.getInstance().getJobInstance(jobName).getJobInstanceId())) {
+            try {
+                if(isShutdown){
                     return;
                 }
-                List<Integer> failoverItems = failoverService.getFailoverItems(jobInstanceId);
-                if (!failoverItems.isEmpty()) {
-                    for (int each : failoverItems) {
-                        failoverService.setCrashedFailoverFlag(each);
-                        failoverService.failoverIfNecessary();
-                    }
-                } else {
-                    for (int each : shardingService.getShardingItems(jobInstanceId)) {
-                        failoverService.setCrashedFailoverFlag(each);
-                        failoverService.failoverIfNecessary();
+                //没有失效的分片项
+                if (executionPath.equals(path)){
+                    return;
+                }
+                int item = getItem(path);
+                String runningPath = JobNodePath.getNodeFullPath(jobName, ExecutionNode.getRunningNode(item));
+                String failoverPath = JobNodePath.getNodeFullPath(jobName,
+                        FailoverNode.getExecutionFailoverNode(item));
+                switch (event.getType()) {
+                    case NODE_ADDED:
+                        zkCacheManager.addNodeCacheListener(new RunningPathListener(item), runningPath);
+                        runningAndFailoverPath.add(runningPath);
+                        zkCacheManager.addNodeCacheListener(new FailoverPathJobListener(item), failoverPath);
+                        runningAndFailoverPath.add(failoverPath);
+                        break;
+                    case NODE_REMOVED:
+                        zkCacheManager.closeNodeCache(runningPath);
+                        runningAndFailoverPath.remove(runningPath);
+                        zkCacheManager.closeNodeCache(failoverPath);
+                        runningAndFailoverPath.remove(failoverPath);
+                        break;
+                    default:
+                }
+            }catch (Exception e){
+                LOGGER.error( e.getMessage(), e);
+            }
+        }
+
+        //获取分片项
+        private int getItem(String path){
+            return Integer.parseInt(path.substring(path.lastIndexOf("/")+ 1));
+        }
+    }
+    class RunningPathListener implements NodeCacheListener {
+
+        private int item;
+
+        public RunningPathListener(int item) {
+            this.item = item;
+        }
+
+        @Override
+        public void nodeChanged() throws Exception {
+            zkCacheManager.getExecutorService().execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (isShutdown) {
+                            return;
+                        }
+                        if (!executionService.isRunning(item)) {
+                            failover(item);
+                        }
+                    } catch (Throwable t) {
+                        LOGGER.error( jobName, t.getMessage(), t);
                     }
                 }
-            }
+            });
         }
     }
 
-    class FailoverSettingsChangedJobListener extends AbstractJobListener {
 
-        @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
-            if (configNode.isConfigPath(path) && TreeCacheEvent.Type.NODE_UPDATED == event.getType() && !JsonUtils.fromJson(data , JobConfiguration.class).isFailover()) {
-                failoverService.removeFailoverInfo();
-            }
+
+    class FailoverPathJobListener implements NodeCacheListener {
+
+        private int item;
+
+        public FailoverPathJobListener(int item) {
+            this.item = item;
         }
-
-
+        @Override
+        public void nodeChanged() throws Exception {
+            zkCacheManager.getExecutorService().execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (isShutdown) {
+                            return;
+                        }
+                        if (!executionService.isFailover(item)) {
+                            failover(item);
+                        }
+                    } catch (Throwable t) {
+                        LOGGER.error(t.getMessage(), t);
+                    }
+                }
+            });
+        }
     }
 }

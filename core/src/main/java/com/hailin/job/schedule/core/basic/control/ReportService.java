@@ -4,8 +4,9 @@ import com.google.common.collect.Maps;
 import com.hailin.job.schedule.core.basic.execution.ExecutionInfo;
 import com.hailin.job.schedule.core.basic.execution.ExecutionNode;
 import com.hailin.job.schedule.core.basic.sharding.ShardingService;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import com.hailin.shrine.job.common.util.LogEvents;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,26 +14,25 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
-public class ReportService extends AbstractShrineService {
+public class ReportService extends AbstractScheduleService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReportService.class);
 
     private Map<Integer , ExecutionInfo> infoMap = Maps.newHashMap();
 
-
-    private ShardingService shardingService;
-
-    public ReportService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
-        super(jobName, coordinatorRegistryCenter);
-        shardingService = new ShardingService(jobName ,coordinatorRegistryCenter);
+    public ReportService(JobScheduler jobScheduler) {
+        super(jobScheduler);
     }
 
+    /**
+     * 将报告信息写入zk
+     */
     public void reportDataToZK(){
         synchronized (infoMap){
             if(infoMap.size() == 0){
                 return;
             }
-            List<Integer> shardingItems = shardingService.getLocalShardingItems();
+            List<Integer> shardingItems = jobScheduler.getExecutionContextService().getShardingItems();
 
             for (Map.Entry<Integer , ExecutionInfo> entry : infoMap.entrySet()){
                 Integer item = entry.getKey();

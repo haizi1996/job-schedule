@@ -5,6 +5,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.reflect.TypeToken;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import com.hailin.shrine.job.common.exception.JobConfigurationException;
 import com.hailin.shrine.job.common.exception.JobExecutionEnvironmentException;
 import com.hailin.shrine.job.common.exception.ShardingItemParametersException;
@@ -12,14 +13,13 @@ import com.hailin.shrine.job.common.util.GsonFactory;
 import com.hailin.shrine.job.common.util.JsonUtils;
 import com.hailin.shrine.job.common.util.LogEvents;
 import com.hailin.shrine.job.common.util.TimeService;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.basic.JobTypeManager;
 import com.hailin.job.schedule.core.basic.config.ConfigurationNode;
 import com.hailin.job.schedule.core.basic.threads.ScheduleThreadFactory;
 import com.hailin.job.schedule.core.config.JobConfiguration;
 import com.hailin.job.schedule.core.config.JobType;
 import com.hailin.job.schedule.core.job.constant.ShrineConstant;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.sharding.node.ShrineExecutorsNode;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
@@ -41,7 +41,7 @@ import java.util.concurrent.Executors;
  * 弹性化分布式作业配置服务.
  * @author zhanghailin
  */
-public class ConfigurationService extends AbstractShrineService {
+public class ConfigurationService extends AbstractScheduleService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationService.class);
 
@@ -57,8 +57,8 @@ public class ConfigurationService extends AbstractShrineService {
     private final TimeService timeService;
 
 
-    public ConfigurationService( final String jobName , final CoordinatorRegistryCenter regCenter) {
-        super( jobName , regCenter);
+    public ConfigurationService(JobScheduler jobScheduler) {
+        super( jobScheduler);
         timeService = new TimeService();
     }
 

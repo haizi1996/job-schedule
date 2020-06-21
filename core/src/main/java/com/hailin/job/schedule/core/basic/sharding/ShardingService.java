@@ -1,35 +1,26 @@
 package com.hailin.job.schedule.core.basic.sharding;
 
 import com.google.common.collect.Lists;
-import com.hailin.job.schedule.core.service.ConfigurationService;
-import com.hailin.job.schedule.core.strategy.JobInstance;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import com.hailin.shrine.job.common.exception.JobShuttingDownException;
 import com.hailin.shrine.job.common.util.BlockUtils;
 import com.hailin.shrine.job.common.util.ItemUtils;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
-import com.hailin.job.schedule.core.basic.JobRegistry;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.basic.election.LeaderElectionService;
 import com.hailin.job.schedule.core.basic.execution.ExecutionService;
-import com.hailin.job.schedule.core.basic.instance.InstanceNode;
-import com.hailin.job.schedule.core.basic.instance.InstanceService;
 import com.hailin.job.schedule.core.basic.server.ServerService;
 import com.hailin.job.schedule.core.basic.storage.JobNodePath;
-import com.hailin.job.schedule.core.basic.storage.TransactionExecutionCallback;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.shrine.job.sharding.service.NamespaceShardingContentService;
-import lombok.RequiredArgsConstructor;
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
 import org.apache.curator.framework.api.transaction.CuratorMultiTransaction;
 import org.apache.curator.framework.api.transaction.CuratorOp;
-import org.apache.curator.framework.api.transaction.CuratorTransactionFinal;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +28,7 @@ import java.util.Map;
  * 作业分片服务
  * @author zhanghailin
  */
-public class ShardingService extends AbstractShrineService {
+public class ShardingService extends AbstractScheduleService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ShardingService.class);
 
@@ -51,31 +42,21 @@ public class ShardingService extends AbstractShrineService {
 
     private NamespaceShardingContentService namespaceShardingContentService;
 
-    private final InstanceService instanceService;
 
     private volatile boolean isShutdown;
     private CuratorWatcher necessaryWatcher;
-    private ConfigurationService configurationService;
-
-    private JobNodePath jobNodePath;
 
 
-    public ShardingService(String jobName, CoordinatorRegistryCenter registryCenter) {
-        super(jobName, registryCenter);
-        leaderElectionService = new LeaderElectionService(jobName , registryCenter);
-        configurationService = new ConfigurationService(jobName , registryCenter);
-        instanceService = new InstanceService(jobName , registryCenter);
-        serverService = new ServerService(jobName , registryCenter);
-        executionService = new ExecutionService(jobName , registryCenter);
-        jobNodePath = new JobNodePath(jobName);
+    public ShardingService(final JobScheduler jobScheduler) {
+        super(jobScheduler);
     }
     @Override
     public synchronized void start() {
-//        leaderElectionService = jobScheduler.getLeaderElectionService();
-//        serverService = jobScheduler.getServerService();
-//        executionService = jobScheduler.getExecutionService();
-//        namespaceShardingContentService = new NamespaceShardingContentService(
-//                (CuratorFramework) coordinatorRegistryCenter.getRawClient());
+        leaderElectionService = jobScheduler.getLeaderElectionService();
+        serverService = jobScheduler.getServerService();
+        executionService = jobScheduler.getExecutionService();
+        namespaceShardingContentService = new NamespaceShardingContentService(
+                (CuratorFramework) coordinatorRegistryCenter.getRawClient());
     }
 
     /**
@@ -268,26 +249,7 @@ public class ShardingService extends AbstractShrineService {
         }
     }
 
-    /**
-     * 获取作业运行实例的分片项集合.
-     *
-     * @param jobInstanceId 作业运行实例主键
-     * @return 作业运行实例的分片项集合
-     */
-    public List<Integer> getShardingItems(final String jobInstanceId) {
-        JobInstance jobInstance = new JobInstance(jobInstanceId);
-        if (!serverService.isAvailableServer(jobInstance.getIp())) {
-            return Collections.emptyList();
-        }
-        List<Integer> result = new LinkedList<>();
-        int shardingTotalCount = configurationService.load(true).getTypeConfig().getCoreConfig().getShardingTotalCount();
-        for (int i = 0; i < shardingTotalCount; i++) {
-            if (jobInstance.getJobInstanceId().equals(jobNodeStorage.getJobNodeData(ShardingNode.getInstanceNode(i)))) {
-                result.add(i);
-            }
-        }
-        return result;
-    }
+
 
     /**
      * 获取运行在本作业服务器的分片序列号.
@@ -299,42 +261,13 @@ public class ShardingService extends AbstractShrineService {
         return ItemUtils.toItemList(value);
     }
 
-    /**
-     * 查询是包含有分片节点的不在线服务器.
-     *
-     * @return 是包含有分片节点的不在线服务器
-     */
-    public boolean hasShardingInfoInOfflineServers() {
-        List<String> onlineInstances = jobNodeStorage.getJobNodeChildrenKeys(InstanceNode.ROOT);
-        int shardingTotalCount = configurationService.load(true).getTypeConfig().getCoreConfig().getShardingTotalCount();
-        for (int i = 0; i < shardingTotalCount; i++) {
-            if (!onlineInstances.contains(jobNodeStorage.getJobNodeData(ShardingNode.getInstanceNode(i)))) {
-                return true;
-            }
-        }
-        return false;
-    }
+
     @Override
     public void shutdown() {
         isShutdown = true;
         necessaryWatcher = null; // cannot registerNecessaryWatcher
     }
 
-    @RequiredArgsConstructor
-    class PersistShardingInfoTransactionExecutionCallback implements TransactionExecutionCallback {
 
-        private final Map<JobInstance, List<Integer>> shardingResults;
-
-        @Override
-        public void execute(final CuratorTransactionFinal curatorTransactionFinal) throws Exception {
-            for (Map.Entry<JobInstance, List<Integer>> entry : shardingResults.entrySet()) {
-                for (int shardingItem : entry.getValue()) {
-                    curatorTransactionFinal.create().forPath(jobNodePath.getFullPath(ShardingNode.getInstanceNode(shardingItem)), entry.getKey().getJobInstanceId().getBytes()).and();
-                }
-            }
-            curatorTransactionFinal.delete().forPath(jobNodePath.getFullPath(ShardingNode.NECESSARY)).and();
-            curatorTransactionFinal.delete().forPath(jobNodePath.getFullPath(ShardingNode.PROCESSING)).and();
-        }
-    }
 
 }

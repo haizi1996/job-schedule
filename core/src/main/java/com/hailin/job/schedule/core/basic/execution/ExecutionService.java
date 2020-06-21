@@ -3,15 +3,14 @@ package com.hailin.job.schedule.core.basic.execution;
 import com.google.common.collect.Lists;
 import com.hailin.job.schedule.core.basic.sharding.context.JobExecutionMultipleShardingContext;
 import com.hailin.job.schedule.core.service.ConfigurationService;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import com.hailin.shrine.job.ScheduleJobReturn;
 import com.hailin.shrine.job.ScheduleSystemErrorGroup;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
-import com.hailin.job.schedule.core.basic.JobRegistry;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.basic.ScheduleExecutionContext;
 import com.hailin.job.schedule.core.basic.control.ReportService;
 import com.hailin.job.schedule.core.basic.failover.FailoverNode;
 import com.hailin.job.schedule.core.basic.sharding.ShardingNode;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 import com.hailin.job.schedule.core.reg.exception.RegException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,22 +25,24 @@ import java.util.concurrent.ExecutorService;
  * 执行作业的服务
  * @author zhanghailin
  */
-public class ExecutionService extends AbstractShrineService {
+public class ExecutionService extends AbstractScheduleService {
+
+    private static final String NO_RETURN_VALUE = "No return value.";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorService.class);
 
-    private ConfigurationService configurationService;
+    private ConfigurationService configService;
 
     private ReportService reportService;
 
-    public ExecutionService(String jobName, CoordinatorRegistryCenter registryCenter) {
-        super(jobName, registryCenter);
+    public ExecutionService(final JobScheduler jobScheduler ) {
+        super(jobScheduler);
     }
 
     @Override
     public void start() {
-//        configurationService = jobScheduler.getConfigService();
-//        reportService = jobScheduler.getReportService();
+        configService = jobScheduler.getConfigService();
+        reportService = jobScheduler.getReportService();
     }
 
     /**
@@ -90,7 +91,7 @@ public class ExecutionService extends AbstractShrineService {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("registerJobBeginByItem: " + item);
         }
-        boolean isEnabledReport = configurationService.isEnabledReport();
+        boolean isEnabledReport = configService.isEnabledReport();
         if (isEnabledReport){
             getJobNodeStorage().removeJobNode(ExecutionNode.getCompletedNode(item));
             getJobNodeStorage().fillEphemeralJobNode(ExecutionNode.getRunningNode(item),executorName);
@@ -98,21 +99,6 @@ public class ExecutionService extends AbstractShrineService {
             cleanShrineNode(item);
         }
         reportService.initInfoOnbegin(item , nextFireTime);
-    }
-
-    /**
-     * 注册作业完成信息.
-     *
-     * @param shardingContexts 分片上下文
-     */
-    public void registerJobCompleted(final ShardingContexts shardingContexts) {
-        JobRegistry.getInstance().setJobRunning(jobName, false);
-        if (!configurationService.load(true).isMonitorExecution()) {
-            return;
-        }
-        for (int each : shardingContexts.getShardingItemParameters().keySet()) {
-            jobNodeStorage.removeJobNodeIfExisted(ShardingNode.getRunningNode(each));
-        }
     }
 
 
@@ -220,7 +206,7 @@ public class ExecutionService extends AbstractShrineService {
      * 判断分片项是否还有执行中的作业
      * @param allItems 需要判断的分片项列表
      */
-    private boolean hasRunningItems(Collection<Integer> allItems) {
+    public boolean hasRunningItems(Collection<Integer> allItems) {
         return allItems.stream().anyMatch(item ->getJobNodeStorage().isJobNodeExisted(ExecutionNode.getRunningNode(item)));
     }
 
@@ -308,11 +294,60 @@ public class ExecutionService extends AbstractShrineService {
 
     }
 
-    private void registerJobCompletedControlInfoByItem(JobExecutionMultipleShardingContext shardingContext, int item) {
-        boolean isEnableReport = configurationService.isEnabledReport();
-        if (!isEnableReport){
+    /**
+     * 作业完成信息注册，此信息用于页面展现。注意，无论作业是否上报状态(对应/config/enabledReport/节点)，都会注册此信息。
+     */
+    public void registerJobCompletedReportInfoByItem(
+            final JobExecutionMultipleShardingContext jobExecutionShardingContext, int item,
+            Date nextFireTimePausePeriodEffected) {
+        ExecutionInfo info = reportService.getInfoByItem(item);
+        if (info == null) { // old data has been flushed to zk.
+            info = new ExecutionInfo(item);
+        }
+        if (jobExecutionShardingContext instanceof ScheduleExecutionContext) {
+            // 为了展现分片处理失败的状态
+            ScheduleExecutionContext shardingContext = (ScheduleExecutionContext) jobExecutionShardingContext;
+            if (shardingContext.isSaturnJob()) {
+                ScheduleJobReturn jobRet = shardingContext.getShardingItemResults().get(item);
+                if (jobRet != null) {
+                    int errorGroup = jobRet.getErrorGroup();
+                    info.setJobMsg(jobRet.getReturnMsg());
+                    //如果作业执行成功且不展示日志，则不展现log
+                    if (errorGroup == ScheduleSystemErrorGroup.SUCCESS && !configService.showNormalLog()) {
+                        info.setJobLog(null);
+                    } else {
+                        info.setJobLog(shardingContext.getJobLog(item));
+                    }
+                } else {
+                    info.setJobMsg(NO_RETURN_VALUE);
+                }
+            }
+        }
+        if (nextFireTimePausePeriodEffected != null) {
+            info.setNextFireTime(nextFireTimePausePeriodEffected.getTime());
+        }
+
+        info.setLastCompleteTime(System.currentTimeMillis());
+        reportService.fillInfoOnAfter(info);
+    }
+
+    /**
+     * 注册作业完成信息.
+     *
+     */
+    public void registerJobCompletedControlInfoByItem(
+            final JobExecutionMultipleShardingContext jobExecutionShardingContext, int item) {
+
+        boolean isEnabledReport = configService.isEnabledReport();
+        if (!isEnabledReport) {
             return;
         }
 
+        updateErrorJobReturnIfPossible(jobExecutionShardingContext, item);
+        // create completed node
+        createCompletedNode(item);
+        // remove running node
+        getJobNodeStorage().removeJobNode(ExecutionNode.getRunningNode(item));
     }
+
 }

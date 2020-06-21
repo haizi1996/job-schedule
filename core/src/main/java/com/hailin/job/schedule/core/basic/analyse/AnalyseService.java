@@ -1,17 +1,18 @@
 package com.hailin.job.schedule.core.basic.analyse;
 
 import com.hailin.job.schedule.core.basic.statistics.ProcessCountStatistics;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 
 /**
  * 作业服务器节点统计服务
  * @author zhanghailin
  */
-public class AnalyseService extends AbstractShrineService {
+public class AnalyseService extends AbstractScheduleService {
 
-    public AnalyseService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
-        super(jobName, coordinatorRegistryCenter);
+    public AnalyseService(final JobScheduler jobScheduler) {
+        super(jobScheduler);
+
     }
 
     @Override

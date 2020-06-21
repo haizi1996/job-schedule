@@ -13,7 +13,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-public abstract class AbstractShrineService implements Shutdownable {
+public abstract class AbstractScheduleService implements Shutdownable {
 
     //执行者名字
     protected String executorName;
@@ -31,20 +31,15 @@ public abstract class AbstractShrineService implements Shutdownable {
     //作业节点数据访问类
     protected JobNodeStorage jobNodeStorage;
 
-    public AbstractShrineService(String jobName, CoordinatorRegistryCenter coordinatorRegistryCenter) {
-        this.jobName = jobName;
-        this.coordinatorRegistryCenter = coordinatorRegistryCenter;
-        this.jobNodeStorage = new JobNodeStorage(coordinatorRegistryCenter , jobName);
-    }
 
-//    public AbstractShrineService(JobScheduler jobScheduler) {
-//        this.jobScheduler = jobScheduler;
-//        this.jobName = jobScheduler.getJobName();
-//        this.executorName = jobScheduler.getExecutorName();
-//        this.coordinatorRegistryCenter = jobScheduler.getRegCenter();
-//        this.jobConfiguration = jobScheduler.getCurrentConf();
-//        this.jobNodeStorage = jobScheduler.getJobNodeStorage();
-//    }
+    public AbstractScheduleService(JobScheduler jobScheduler) {
+        this.jobScheduler = jobScheduler;
+        this.jobName = jobScheduler.getJobName();
+        this.executorName = jobScheduler.getExecutorName();
+        this.coordinatorRegistryCenter = jobScheduler.getRegCenter();
+        this.jobConfiguration = jobScheduler.getCurrentConf();
+        this.jobNodeStorage = jobScheduler.getJobNodeStorage();
+    }
 
 
 

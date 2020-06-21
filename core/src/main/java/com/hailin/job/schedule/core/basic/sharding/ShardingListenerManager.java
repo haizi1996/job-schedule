@@ -1,21 +1,18 @@
 package com.hailin.job.schedule.core.basic.sharding;
 
-import com.hailin.job.schedule.core.listener.AbstractJobListener;
+import com.hailin.job.schedule.core.basic.threads.ScheduleThreadFactory;
+import com.hailin.job.schedule.core.config.JobType;
 import com.hailin.job.schedule.core.listener.AbstractListenerManager;
-import com.hailin.job.schedule.core.basic.JobRegistry;
-import com.hailin.job.schedule.core.basic.config.ConfigurationNode;
-import com.hailin.job.schedule.core.basic.instance.InstanceNode;
-import com.hailin.job.schedule.core.basic.server.ServerNode;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
-import org.apache.curator.framework.CuratorFramework;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import org.apache.curator.framework.api.CuratorWatcher;
-import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
+import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.zookeeper.WatchedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 分片监听管理器
@@ -24,7 +21,7 @@ public class ShardingListenerManager extends AbstractListenerManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ShardingListenerManager.class);
 
-    private volatile boolean isShutdown ;
+    private volatile boolean isShutdown;
 
     private CuratorWatcher necessaryWatcher;
 
@@ -33,38 +30,37 @@ public class ShardingListenerManager extends AbstractListenerManager {
     private ExecutorService executorService;
 
     private ConnectionStateListener connectionStateListener;
-    private final ConfigurationNode configNode;
-    private final InstanceNode instanceNode ;
-    private final ServerNode serverNode ;
 
+    public ShardingListenerManager(final JobScheduler jobScheduler) {
+        super(jobScheduler);
+        shardingService = jobScheduler.getShardingService();
+        JobType jobType = jobScheduler.getConfigService().getJobType();
 
-    public ShardingListenerManager(String jobName, CoordinatorRegistryCenter regCenter) {
-        super(jobName, regCenter);
-        configNode = new ConfigurationNode(jobName);
-        instanceNode = new InstanceNode(jobName);
-        serverNode = new ServerNode(jobName);
-        shardingService = new ShardingService( jobName , regCenter);
+        if (!jobType.isCron() && !jobType.isPassive()) {
+            necessaryWatcher = new NecessaryWatcher();
+        }
     }
 
     @Override
     public void start() {
-//        if (necessaryWatcher != null){
-//            executorService = Executors.newSingleThreadExecutor(
-//                    new ShrineThreadFactory(executorName + "-" + jobName + "-registerNecessaryWatcher", false));
-//
-//            shardingService.registerNecessaryWatcher(necessaryWatcher);
-//            connectionStateListener = (client , newState)->{
-//                if (newState == ConnectionState.CONNECTED ||
-//                newState == ConnectionState.RECONNECTED){
-//                    LOGGER.info( jobName,
-//                            "state change to {}, trigger doBusiness and register necessary watcher.", newState);
-//                    doBusiness();
-//                    registerNecessaryWatcher();
-//                }
-//            };
-//            addConnectionStateListener(connectionStateListener);
-//        }
+        if (necessaryWatcher == null) {
+            return;
+        }
+        executorService = Executors.newSingleThreadExecutor(
+                new ScheduleThreadFactory(executorName + "-" + jobName + "-registerNecessaryWatcher", false));
+        shardingService.registerNecessaryWatcher(necessaryWatcher);
+        connectionStateListener = (client, newState) -> {
+            if (newState == ConnectionState.CONNECTED ||
+                    newState == ConnectionState.RECONNECTED) {
+                LOGGER.info(jobName,
+                        "state change to {}, trigger doBusiness and register necessary watcher.", newState);
+                doBusiness();
+                registerNecessaryWatcher();
+            }
+        };
+        addConnectionStateListener(connectionStateListener);
     }
+
     @Override
     public void shutdown() {
         super.shutdown();
@@ -102,55 +98,37 @@ public class ShardingListenerManager extends AbstractListenerManager {
                         if (jobScheduler == null || jobScheduler.getJob() == null) {
                             return;
                         }
-                        LOGGER.info( jobName, "{} trigger on-resharding", jobName);
+                        LOGGER.info(jobName, "{} trigger on-resharding", jobName);
                         jobScheduler.getJob().onResharding();
                     } catch (Throwable t) {
-                        LOGGER.error( jobName, "Exception throws during resharding", t);
+                        LOGGER.error(jobName, "Exception throws during resharding", t);
                     }
                 }
             });
         } catch (Throwable t) {
-            LOGGER.error( jobName, "Exception throws during execute thread", t);
+            LOGGER.error(jobName, "Exception throws during execute thread", t);
         }
     }
 
-    class NecessaryWatcher implements CuratorWatcher{
+    class NecessaryWatcher implements CuratorWatcher {
 
         @Override
         public void process(WatchedEvent event) throws Exception {
-            if (isShutdown){
+            if (isShutdown) {
                 return;
             }
-            switch (event.getType())
-            {
+            switch (event.getType()) {
                 case NodeCreated:
 
                 case NodeDataChanged:
-                    LOGGER.info( jobName, "event type:{}, path:{}", event.getType(), event.getPath());
+                    LOGGER.info(jobName, "event type:{}, path:{}", event.getType(), event.getPath());
                     doBusiness();
-                    default:
-                        registerNecessaryWatcher();
+                default:
+                    registerNecessaryWatcher();
             }
 
         }
     }
 
 
-    class ListenServersChangedJobListener extends AbstractJobListener {
-
-        @Override
-        protected void dataChanged(CuratorFramework client, TreeCacheEvent event, String data, String path) {
-            if (!JobRegistry.getInstance().isShutdown(jobName) && (isInstanceChange(event.getType(), path) || isServerChange(path))) {
-                shardingService.setReshardingFlag();
-            }
-        }
-
-        private boolean isInstanceChange(final TreeCacheEvent.Type eventType, final String path) {
-            return instanceNode.isInstancePath(path) && TreeCacheEvent.Type.NODE_UPDATED != eventType;
-        }
-
-        private boolean isServerChange(final String path) {
-            return serverNode.isLocalServerPath(path);
-        }
-    }
 }

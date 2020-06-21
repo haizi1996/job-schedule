@@ -3,7 +3,7 @@ package com.hailin.job.schedule.core.basic.guarantee;
 
 
 import com.hailin.job.schedule.core.service.ConfigurationService;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 
 import java.util.Collection;
@@ -12,7 +12,7 @@ import java.util.Collection;
  * 保证分布式任务全部开始和结束状态的服务.
  * 
  */
-public final class GuaranteeService extends AbstractShrineService {
+public final class GuaranteeService extends AbstractScheduleService {
     
 
     private final ConfigurationService configService;

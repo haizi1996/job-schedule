@@ -1,14 +1,14 @@
 package com.hailin.job.schedule.core.basic.monitor;
 
 import com.hailin.job.schedule.core.service.ConfigurationService;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 
 /**
  * 作业监控服务
  * @author zhanghailin
  */
-public class MonitorService extends AbstractShrineService {
+public class MonitorService extends AbstractScheduleService {
 
 
     private final ConfigurationService configurationService;

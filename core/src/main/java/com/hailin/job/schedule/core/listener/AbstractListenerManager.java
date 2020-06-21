@@ -33,20 +33,15 @@ public abstract class AbstractListenerManager implements Shutdownable {
     //作业缓存管理
     protected ZkCacheManager zkCacheManager;
 
-    private final JobNodeStorage jobNodeStorage;
 
-    protected AbstractListenerManager( final String jobName , final CoordinatorRegistryCenter regCenter) {
-        jobNodeStorage = new JobNodeStorage(regCenter, jobName);
+    public AbstractListenerManager(JobScheduler jobScheduler) {
+        this.jobScheduler = jobScheduler;
+        this.jobName = jobScheduler.getJobName();
+        this.executorName = jobScheduler.getExecutorName();
+        this.jobConfiguration = jobScheduler.getCurrentConf();
+        coordinatorRegistryCenter = jobScheduler.getRegCenter();
+        zkCacheManager = jobScheduler.getZkCacheManager();
     }
-
-//    public AbstractListenerManager(JobScheduler jobScheduler) {
-//        this.jobScheduler = jobScheduler;
-//        this.jobName = jobScheduler.getJobName();
-//        this.executorName = jobScheduler.getExecutorName();
-//        this.jobConfiguration = jobScheduler.getCurrentConf();
-//        coordinatorRegistryCenter = jobScheduler.getRegCenter();
-//        zkCacheManager = jobScheduler.getZkCacheManager();
-//    }
 
 
     /**
@@ -71,9 +66,6 @@ public abstract class AbstractListenerManager implements Shutdownable {
      */
     public abstract void start();
 
-    protected void addDataListener(final TreeCacheListener listener) {
-        jobNodeStorage.addDataListener(listener);
-    }
     @Override
     public void shutdown() {
 

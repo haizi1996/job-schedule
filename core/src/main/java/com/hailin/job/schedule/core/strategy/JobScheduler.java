@@ -63,11 +63,8 @@ public class JobScheduler {
 
     private ExecutorService executorService;
 
-    private final JobConfiguration jobConfiguration;
-
     private final CoordinatorRegistryCenter regCenter;
 
-    private  JobConfiguration currentConf;
 
     private final JobNodeStorage jobNodeStorage;
 
@@ -79,7 +76,9 @@ public class JobScheduler {
 
     private final ZkCacheManager zkCacheManager;
 
-    private JobConfiguration previousConfig = new JobConfiguration(null , null);
+    private JobConfiguration previousConf = new JobConfiguration(null , null);
+
+    private  JobConfiguration currentConf;
 
     private final ConfigurationService configService;
 
@@ -117,7 +116,7 @@ public class JobScheduler {
 //    private final JobFacade jobFacade;
 
     public JobScheduler(JobConfiguration jobConfig, CoordinatorRegistryCenter regCenter) {
-        this.jobConfiguration = jobConfig;
+
         this.jobName = jobConfig.getJobName();
         this.executorName = regCenter.getExecutorName();
         this.currentConf = jobConfig;
@@ -129,26 +128,39 @@ public class JobScheduler {
         zkCacheManager = new ZkCacheManager((CuratorFramework) regCenter.getRawClient(), jobName,
                 executorName);
 
-        configService= new ConfigurationService(currentConf.getJobName() ,regCenter);
+        configService= new ConfigurationService(this);
+        leaderElectionService = new LeaderElectionService(this);
+        serverService = new ServerService(this);
+        shardingService = new ShardingService(this);
+        executionContextService = new ExecutionContextService(this);
+        executionService = new ExecutionService(this);
+        failoverService = new FailoverService(this);
+        statisticsService = new StatisticsService(this);
+        analyseService = new AnalyseService(this);
+        limitMaxJobService = new LimitMaxJobService(this);
+        listenerManager = new ListenerManager(this);
+        reportService = new ReportService(this);
 
-//        schedulerFacade = new SchedulerFacade( currentConf.getJobName() , regCenter);
-//        jobFacade = new ShrineJobFacade( currentConf.getJobName() , regCenter);
+        // see EnabledPathListener and CronPathListener, only these values are supposed to be watched.
+        previousConf.setTimeZone(jobConfig.getTimeZone());
+        previousConf.setCron(jobConfig.getCron());
+        previousConf.setPausePeriodDate(jobConfig.getPausePeriodDate());
+        previousConf.setPausePeriodTime(jobConfig.getPausePeriodTime());
+        previousConf.setProcessCountIntervalSeconds(jobConfig.getProcessCountIntervalSeconds());
 
     }
 
 
     public void init() {
-//        try {
+        try {
             startAll();
             createJob();
-//            serverService.persistServerOnline(job);
-//            configService.notifyJobEnabledOrNot();
-//        }catch (Throwable throwable){
-//            shutdown(false);
-//            throw throwable;
-//        }
-        JobConfiguration jobConfigFromRegCenter = schedulerFacade.updateJobConfiguration(jobConfiguration);
-        schedulerFacade.registerStartUpInfo(jobConfigFromRegCenter.isEnabled());
+            serverService.persistServerOnline(job);
+            configService.notifyJobEnabledOrNot();
+        }catch (Throwable throwable){
+            shutdown(false);
+            throw throwable;
+        }
     }
 
     private void createJob() {
@@ -185,14 +197,21 @@ public class JobScheduler {
         limitMaxJobService.start();
         analyseService.start();
 
+        // 检查任务数量
         limitMaxJobService.check(currentConf.getJobName());
+
+        // 开启所有的监听器
         listenerManager.start();
+
+        //leader选举 @Link {LeaderNode.LATCH}
         leaderElectionService.leaderElection();
 
+
+        // 作业统计
         serverService.clearRunOneTimePath();
         serverService.clearStopOneTimePath();
         serverService.resetCount();
-//        statisticsService.startProcesCountJob();
+        statisticsService.startProcessCountJob();
     }
 
 

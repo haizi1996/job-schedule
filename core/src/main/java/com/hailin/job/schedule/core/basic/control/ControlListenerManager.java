@@ -3,7 +3,7 @@ package com.hailin.job.schedule.core.basic.control;
 import com.hailin.job.schedule.core.basic.storage.JobNodePath;
 import com.hailin.job.schedule.core.listener.AbstractJobListener;
 import com.hailin.job.schedule.core.listener.AbstractListenerManager;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
@@ -17,8 +17,8 @@ public class ControlListenerManager extends AbstractListenerManager {
 
     private ReportService reportService;
 
-    public ControlListenerManager(final String jobName , final CoordinatorRegistryCenter regCenter) {
-        super(jobName , regCenter);
+    public ControlListenerManager(final JobScheduler jobScheduler ) {
+        super(jobScheduler);
         reportService = jobScheduler.getReportService();
     }
 

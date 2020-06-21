@@ -1,7 +1,7 @@
 package com.hailin.job.schedule.core.basic.instance;
 
 import com.hailin.job.schedule.core.strategy.JobInstance;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.basic.server.ServerService;
 import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
 
@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * 作业运行实例服务
  */
-public final class InstanceService  extends AbstractShrineService {
+public final class InstanceService  extends AbstractScheduleService {
 
 
     private InstanceNode instanceNode;

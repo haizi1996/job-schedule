@@ -1,13 +1,9 @@
 package com.hailin.job.schedule.core.basic.election;
 
-import com.hailin.shrine.job.common.util.BlockUtils;
-import com.hailin.job.schedule.core.basic.AbstractShrineService;
-import com.hailin.job.schedule.core.basic.JobRegistry;
-import com.hailin.job.schedule.core.basic.server.ServerService;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
+import com.hailin.job.schedule.core.basic.AbstractScheduleService;
 import com.hailin.job.schedule.core.basic.storage.JobNodeStorage;
 import com.hailin.job.schedule.core.basic.storage.LeaderExecutionCallback;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
-import org.apache.zookeeper.server.quorum.Election;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,17 +13,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 选举主节点的服务类
  * @author zhanghailin
  */
-public class LeaderElectionService extends AbstractShrineService {
+public class LeaderElectionService extends AbstractScheduleService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LeaderElectionService.class);
 
     private AtomicBoolean shutDown = new AtomicBoolean( false);
 
-    private final ServerService serverService;
 
-    public LeaderElectionService( final String jobName , final CoordinatorRegistryCenter regCenter) {
-        super(jobName , regCenter);
-        serverService = new ServerService( jobName , regCenter);
+    public LeaderElectionService(final JobScheduler jobScheduler) {
+        super(jobScheduler);
     }
 
     /**
@@ -62,20 +56,6 @@ public class LeaderElectionService extends AbstractShrineService {
         getJobNodeStorage().executeInLeader(LeaderNode.LATCH , new LeaderElectionCallback());
     }
 
-    /**
-     * 判断当前节点是否是主节点
-     * 如果没有主节点，则选举，直到有主节点
-     */
-    public Boolean isLeaderUntilBlock(){
-        while (!hasLeader() && serverService.hasAvailableServers()) {
-            LOGGER.info("Leader is electing, waiting for {} ms", 100);
-            BlockUtils.waitingShortTime();
-            if (!JobRegistry.getInstance().isShutdown(jobName) && serverService.isAvailableServer(JobRegistry.getInstance().getJobInstance(jobName).getIp())) {
-                leaderElection();
-            }
-        }
-        return isLeader();
-    }
 
     /**
      * 判断当前节点是否是主节点.

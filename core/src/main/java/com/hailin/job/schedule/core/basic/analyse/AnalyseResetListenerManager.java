@@ -4,7 +4,7 @@ import com.hailin.job.schedule.core.basic.statistics.ProcessCountStatistics;
 import com.hailin.job.schedule.core.basic.storage.JobNodePath;
 import com.hailin.job.schedule.core.listener.AbstractJobListener;
 import com.hailin.job.schedule.core.listener.AbstractListenerManager;
-import com.hailin.job.schedule.core.reg.base.CoordinatorRegistryCenter;
+import com.hailin.job.schedule.core.strategy.JobScheduler;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
@@ -16,9 +16,8 @@ public class AnalyseResetListenerManager extends AbstractListenerManager {
 
     private boolean isShutdown = false;
 
-    public AnalyseResetListenerManager(String jobName, CoordinatorRegistryCenter regCenter, boolean isShutdown) {
-        super(jobName, regCenter);
-        this.isShutdown = isShutdown;
+    public AnalyseResetListenerManager(final JobScheduler jobScheduler) {
+        super(jobScheduler);
     }
 
     @Override
